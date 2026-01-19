@@ -1,0 +1,123 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "retrotro.fullname" . }}-backend
+  labels:
+    {{- include "retrotro.backend.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.backend.autoscaling.enabled }}
+  replicas: {{ .Values.backend.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "retrotro.backend.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "retrotro.backend.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "retrotro.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: backend
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          env:
+            - name: PORT
+              value: "8080"
+            - name: CORS_ORIGINS
+              value: {{ .Values.backend.corsOrigins | quote }}
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "retrotro.fullname" . }}-secrets
+                  key: database-url
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "retrotro.fullname" . }}-secrets
+                  key: jwt-secret
+            - name: OIDC_ISSUER_URL
+              value: {{ .Values.oidc.issuerUrl | quote }}
+            - name: OIDC_CLIENT_ID
+              value: {{ .Values.oidc.clientId | quote }}
+            {{- if or .Values.oidc.clientSecret .Values.oidc.existingSecret }}
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  {{- if .Values.oidc.existingSecret }}
+                  name: {{ .Values.oidc.existingSecret }}
+                  key: {{ .Values.oidc.existingSecretKey | default "oidc-client-secret" }}
+                  {{- else }}
+                  name: {{ include "retrotro.fullname" . }}-secrets
+                  key: oidc-client-secret
+                  {{- end }}
+            {{- end }}
+            - name: OIDC_REDIRECT_URL
+              value: {{ .Values.oidc.redirectUrl | quote }}
+            - name: OIDC_SCOPES
+              value: {{ .Values.oidc.scopes | quote }}
+            - name: OIDC_JIT_ENABLED
+              value: {{ .Values.oidc.jit.enabled | quote }}
+            - name: OIDC_JIT_GROUPS_CLAIM
+              value: {{ .Values.oidc.jit.groupsClaim | quote }}
+            - name: OIDC_JIT_GROUPS_PREFIX
+              value: {{ .Values.oidc.jit.groupsPrefix | quote }}
+            - name: OIDC_JIT_DEFAULT_ROLE
+              value: {{ .Values.oidc.jit.defaultRole | quote }}
+            - name: OIDC_JIT_SYNC_ON_LOGIN
+              value: {{ .Values.oidc.jit.syncOnLogin | quote }}
+            - name: OIDC_JIT_REMOVE_STALE_MEMBERS
+              value: {{ .Values.oidc.jit.removeStaleMembers | quote }}
+            {{- if .Values.oidc.jit.adminGroups }}
+            - name: OIDC_JIT_ADMIN_GROUPS
+              value: {{ .Values.oidc.jit.adminGroups | join "," | quote }}
+            {{- end }}
+            {{- if .Values.oidc.jit.facilitatorGroups }}
+            - name: OIDC_JIT_FACILITATOR_GROUPS
+              value: {{ .Values.oidc.jit.facilitatorGroups | join "," | quote }}
+            {{- end }}
+            {{- range .Values.backend.envFromSecrets }}
+            - name: {{ .key }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: {{ .key }}
+            {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

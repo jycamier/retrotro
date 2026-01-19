@@ -1,0 +1,65 @@
+{{- if .Values.httpRoute.enabled -}}
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: {{ include "retrotro.fullname" . }}
+  labels:
+    {{- include "retrotro.labels" . | nindent 4 }}
+  {{- with .Values.httpRoute.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  hostnames:
+    {{- range .Values.httpRoute.hostnames }}
+    - {{ . | quote }}
+    {{- end }}
+  parentRefs:
+    - name: {{ .Values.httpRoute.gatewayName }}
+      namespace: {{ .Values.httpRoute.gatewayNamespace }}
+  rules:
+    # Backend API routes
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /api
+      backendRefs:
+        - name: {{ include "retrotro.fullname" . }}-backend
+          port: {{ .Values.backend.service.port }}
+    # Auth routes (backend only - /auth/success goes to frontend)
+    - matches:
+        - path:
+            type: Exact
+            value: /auth/info
+        - path:
+            type: Exact
+            value: /auth/login
+        - path:
+            type: Exact
+            value: /auth/callback
+        - path:
+            type: Exact
+            value: /auth/logout
+        - path:
+            type: Exact
+            value: /auth/refresh
+      backendRefs:
+        - name: {{ include "retrotro.fullname" . }}-backend
+          port: {{ .Values.backend.service.port }}
+    # WebSocket routes
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /ws
+      backendRefs:
+        - name: {{ include "retrotro.fullname" . }}-backend
+          port: {{ .Values.backend.service.port }}
+    # Frontend (catch-all)
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: {{ include "retrotro.fullname" . }}-frontend
+          port: {{ .Values.frontend.service.port }}
+{{- end }}

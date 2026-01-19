@@ -1,0 +1,102 @@
+name: Build Backend
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: "Version to build"
+        required: true
+        type: string
+      tag:
+        description: "Git tag"
+        required: true
+        type: string
+  push:
+    branches:
+      - main
+    paths:
+      - "backend/**"
+      - ".github/workflows/build-backend.yml"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build (leave empty for snapshot)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: jycamier/retrotro-backend
+
+jobs:
+  build:
+    name: Build and Push
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Setup ko
+        uses: ko-build/setup-ko@v0.7
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          install-only: true
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ -n "${{ inputs.version }}" ]]; then
+            echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+            echo "snapshot=false" >> $GITHUB_OUTPUT
+          else
+            echo "version=0.0.0-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+            echo "snapshot=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and push with GoReleaser (release)
+        if: steps.version.outputs.snapshot == 'false'
+        env:
+          KO_DOCKER_REPO: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          goreleaser release --clean --skip=validate --skip=announce
+
+      - name: Build and push with GoReleaser (snapshot)
+        if: steps.version.outputs.snapshot == 'true'
+        env:
+          KO_DOCKER_REPO: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          goreleaser release --clean --snapshot --skip=validate --skip=announce
+
+      - name: Push latest tag for main branch
+        if: github.ref == 'refs/heads/main' && steps.version.outputs.snapshot == 'true'
+        run: |
+          ko build --bare --tags=latest,sha-${{ github.sha }} ./cmd/server
+        env:
+          KO_DOCKER_REPO: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}

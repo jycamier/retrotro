@@ -1,0 +1,76 @@
+# Docker Compose override for OIDC authentication with Keycloak
+# Usage: docker compose -f docker-compose.yml -f docker-compose.oidc.yml up
+#
+# Pre-configured users:
+#   - alice@retrotro.dev / alice123  (admin + team-alpha)
+#   - bob@retrotro.dev / bob123      (team-alpha)
+#   - charlie@retrotro.dev / charlie123 (team-beta)
+#   - diana@retrotro.dev / diana123  (team-alpha + team-beta)
+#   - eve@retrotro.dev / eve123      (team-beta)
+#
+# Groups that will be created via JIT:
+#   - team-alpha (Alice as admin, Bob and Diana as members)
+#   - team-beta (Charlie, Diana, Eve as members)
+#   - admins (Alice)
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:22.0
+    profiles: []
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HTTPS_CERTIFICATE_FILE: /opt/keycloak/conf/keycloak-cert.pem
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /opt/keycloak/conf/keycloak-key.pem
+      KC_HOSTNAME: keycloak.localhost
+      KC_HOSTNAME_PORT: "8443"
+      KC_HOSTNAME_STRICT: "false"
+    command:
+      - start-dev
+      - --import-realm
+      - --health-enabled=true
+      - --https-port=8443
+      - --http-port=8080
+    ports:
+      - "8443:8443"
+      - "8180:8080"
+    volumes:
+      - ./keycloak/retrotro-realm.json:/opt/keycloak/data/import/retrotro-realm.json:ro
+      - ./keycloak/certs/keycloak-cert.pem:/opt/keycloak/conf/keycloak-cert.pem:ro
+      - ./keycloak/certs/keycloak-key.pem:/opt/keycloak/conf/keycloak-key.pem:ro
+      - keycloak_data:/opt/keycloak/data
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e 'GET /health/ready HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n' >&3 && cat <&3 | grep -q '200 OK'"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 60s
+
+  backend:
+    environment:
+      DEV_MODE: "false"
+      OIDC_ISSUER_URL: "https://keycloak.localhost:8443/realms/retrotro"
+      OIDC_CLIENT_ID: "retrotro-app"
+      OIDC_CLIENT_SECRET: "retrotro-secret"
+      OIDC_REDIRECT_URL: "${OIDC_REDIRECT_URL:-http://localhost:3000/auth/callback}"
+      OIDC_SCOPES: "openid,profile,email"
+      OIDC_JIT_ENABLED: "true"
+      OIDC_JIT_GROUPS_CLAIM: "groups"
+      OIDC_JIT_DEFAULT_ROLE: "member"
+      OIDC_JIT_ADMIN_GROUPS: "admins"
+      OIDC_JIT_SYNC_ON_LOGIN: "true"
+      SSL_CERT_FILE: "/app/certs/ca-bundle.crt"
+    extra_hosts:
+      - "keycloak.localhost:host-gateway"
+    volumes:
+      - ./keycloak/certs:/app/certs:ro
+    depends_on:
+      keycloak:
+        condition: service_healthy
+
+  frontend:
+    environment:
+      VITE_AUTH_MODE: "oidc"
+
+volumes:
+  keycloak_data:

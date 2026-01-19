@@ -1,0 +1,28 @@
+:3000 {
+    # Health check endpoint (must be before file_server)
+    handle /health {
+        respond "OK" 200
+    }
+
+    # Static files and SPA
+    handle {
+        root * /srv
+
+        # Cache static assets
+        @static {
+            path *.js *.css *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2
+        }
+        header @static Cache-Control "public, max-age=31536000, immutable"
+
+        # SPA fallback
+        try_files {path} /index.html
+        file_server
+    }
+
+    # Security headers
+    header {
+        X-Frame-Options "SAMEORIGIN"
+        X-Content-Type-Options "nosniff"
+        X-XSS-Protection "1; mode=block"
+    }
+}
