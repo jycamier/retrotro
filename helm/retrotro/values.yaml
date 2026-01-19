@@ -1,0 +1,227 @@
+# Default values for retrotro
+
+# Global settings
+global:
+  imageRegistry: ""
+  imagePullSecrets: []
+
+# Backend configuration
+backend:
+  replicaCount: 2
+
+  image:
+    repository: ghcr.io/jycamier/retrotro-backend
+    tag: latest
+    pullPolicy: Always
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+
+  corsOrigins: "http://localhost:3000"
+
+  env:
+    PORT: "8080"
+
+  # Additional environment variables from secrets
+  envFromSecrets: []
+  # - secretName: retrotro-secrets
+  #   key: JWT_SECRET
+
+# Frontend configuration
+frontend:
+  replicaCount: 2
+
+  image:
+    repository: ghcr.io/jycamier/retrotro-frontend
+    tag: latest
+    pullPolicy: Always
+
+  service:
+    type: ClusterIP
+    port: 3000
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 80
+
+  # Caddyfile configuration
+  caddyfile: |
+    :3000 {
+        # Health check endpoint
+        handle /health {
+            respond "OK" 200
+        }
+
+        # Static files and SPA
+        handle {
+            root * /srv
+
+            # Cache static assets
+            @static {
+                path *.js *.css *.png *.jpg *.jpeg *.gif *.ico *.svg *.woff *.woff2
+            }
+            header @static Cache-Control "public, max-age=31536000, immutable"
+
+            # SPA fallback
+            try_files {path} /index.html
+            file_server
+        }
+
+        # Security headers
+        header {
+            X-Frame-Options "SAMEORIGIN"
+            X-Content-Type-Options "nosniff"
+            X-XSS-Protection "1; mode=block"
+        }
+    }
+
+# Ingress configuration (legacy - use httpRoute for Gateway API)
+ingress:
+  enabled: false
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    nginx.ingress.kubernetes.io/websocket-services: "retrotro-backend"
+  hosts:
+    - host: retrotro.local
+      paths:
+        - path: /
+          pathType: Prefix
+          backend: frontend
+        - path: /api
+          pathType: Prefix
+          backend: backend
+        - path: /auth
+          pathType: Prefix
+          backend: backend
+        - path: /ws
+          pathType: Prefix
+          backend: backend
+  tls: []
+  # - secretName: retrotro-tls
+  #   hosts:
+  #     - retrotro.local
+
+# HTTPRoute configuration (Gateway API)
+httpRoute:
+  enabled: true
+  annotations: {}
+  gatewayName: demo-gateway
+  gatewayNamespace: demo
+  hostnames:
+    - retrotro.k8s.camier.family
+
+# PostgreSQL configuration (bitnami/postgresql subchart)
+postgresql:
+  enabled: true
+  auth:
+    database: retrotro
+    username: retrotro
+    password: ""  # Set via --set or secret
+    existingSecret: ""
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+
+# Database URL (when postgresql.enabled=false)
+databaseUrl: ""
+
+# OIDC configuration
+oidc:
+  issuerUrl: ""
+  clientId: ""
+  clientSecret: ""
+  existingSecret: ""        # Use existing secret instead of creating one
+  existingSecretKey: "oidc-client-secret"  # Key in the existing secret
+  redirectUrl: ""
+  scopes: "openid,profile,email,groups"
+
+  # JIT provisioning configuration
+  jit:
+    enabled: true
+    groupsClaim: "groups"
+    groupsPrefix: ""
+    defaultRole: "member"
+    adminGroups: []
+    facilitatorGroups: []
+    syncOnLogin: true
+    removeStaleMembers: false
+
+# JWT configuration
+jwt:
+  secret: ""  # Set via --set or secret
+  existingSecret: ""
+  accessTokenTTL: 15  # minutes
+  refreshTokenTTL: 168  # hours (7 days)
+
+# Service account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+# Network policies
+networkPolicy:
+  enabled: false

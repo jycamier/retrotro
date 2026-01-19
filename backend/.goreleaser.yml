@@ -1,0 +1,57 @@
+version: 2
+
+project_name: retrotro-backend
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: server
+    main: ./cmd/server
+    binary: server
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+
+kos:
+  - id: backend
+    build: server
+    base_image: cgr.dev/chainguard/static:latest
+    repository: ghcr.io/jycamier/retrotro-backend
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    sbom: spdx
+    tags:
+      - "{{ .Version }}"
+      - "{{ .Tag }}"
+      - latest
+    creation_time: "{{ .CommitTimestamp }}"
+    ko_data_creation_time: "{{ .CommitTimestamp }}"
+    labels:
+      org.opencontainers.image.title: "RetroTro Backend"
+      org.opencontainers.image.description: "RetroTro backend API server"
+      org.opencontainers.image.source: "https://github.com/jycamier/retrotro"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.licenses: "MIT"
+
+archives:
+  - format: tar.gz
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  disable: true

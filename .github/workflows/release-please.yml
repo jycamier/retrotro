@@ -1,0 +1,101 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+  packages: write
+  id-token: write
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
+      backend_release_created: ${{ steps.release.outputs['backend--release_created'] }}
+      backend_tag_name: ${{ steps.release.outputs['backend--tag_name'] }}
+      backend_version: ${{ steps.release.outputs['backend--version'] }}
+      frontend_release_created: ${{ steps.release.outputs['frontend--release_created'] }}
+      frontend_tag_name: ${{ steps.release.outputs['frontend--tag_name'] }}
+      frontend_version: ${{ steps.release.outputs['frontend--version'] }}
+      helm_release_created: ${{ steps.release.outputs['helm/retrotro--release_created'] }}
+      helm_tag_name: ${{ steps.release.outputs['helm/retrotro--tag_name'] }}
+      helm_version: ${{ steps.release.outputs['helm/retrotro--version'] }}
+      terraform_release_created: ${{ steps.release.outputs['terraform-provider-retrotro--release_created'] }}
+      terraform_tag_name: ${{ steps.release.outputs['terraform-provider-retrotro--tag_name'] }}
+      terraform_version: ${{ steps.release.outputs['terraform-provider-retrotro--version'] }}
+    steps:
+      - name: Release Please
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  trigger-backend-build:
+    name: Trigger Backend Build
+    needs: release-please
+    if: needs.release-please.outputs.backend_release_created == 'true'
+    uses: ./.github/workflows/build-backend.yml
+    with:
+      version: ${{ needs.release-please.outputs.backend_version }}
+      tag: ${{ needs.release-please.outputs.backend_tag_name }}
+    secrets: inherit
+
+  update-helm-appversion:
+    name: Update Helm appVersion
+    needs: [release-please, trigger-backend-build]
+    if: needs.release-please.outputs.backend_release_created == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update appVersion in Chart.yaml
+        uses: mikefarah/yq@master
+        with:
+          cmd: yq -i '.appVersion = "${{ needs.release-please.outputs.backend_version }}"' helm/retrotro/Chart.yaml
+
+      - name: Commit and push
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email github-actions[bot]@users.noreply.github.com
+          git add helm/retrotro/Chart.yaml
+          git commit -m "chore(helm): update appVersion to ${{ needs.release-please.outputs.backend_version }}" || true
+          git push
+
+  trigger-frontend-build:
+    name: Trigger Frontend Build
+    needs: release-please
+    if: needs.release-please.outputs.frontend_release_created == 'true'
+    uses: ./.github/workflows/build-frontend.yml
+    with:
+      version: ${{ needs.release-please.outputs.frontend_version }}
+      tag: ${{ needs.release-please.outputs.frontend_tag_name }}
+    secrets: inherit
+
+  trigger-helm-release:
+    name: Trigger Helm Release
+    needs: release-please
+    if: needs.release-please.outputs.helm_release_created == 'true'
+    uses: ./.github/workflows/helm-release.yml
+    with:
+      version: ${{ needs.release-please.outputs.helm_version }}
+      tag: ${{ needs.release-please.outputs.helm_tag_name }}
+    secrets: inherit
+
+  trigger-terraform-release:
+    name: Trigger Terraform Provider Release
+    needs: release-please
+    if: needs.release-please.outputs.terraform_release_created == 'true'
+    uses: ./.github/workflows/terraform-provider.yml
+    with:
+      version: ${{ needs.release-please.outputs.terraform_version }}
+      tag: ${{ needs.release-please.outputs.terraform_tag_name }}
+    secrets: inherit

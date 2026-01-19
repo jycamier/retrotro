@@ -1,0 +1,21 @@
+apiVersion: v2
+name: retrotro
+description: RetroTro - Agile retrospective tool
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - retrospective
+  - agile
+  - scrum
+  - team
+home: https://github.com/jycamier/retrotro
+sources:
+  - https://github.com/jycamier/retrotro
+maintainers:
+  - name: jycamier
+dependencies:
+  - name: postgresql
+    version: "13.2.24"
+    repository: "https://charts.bitnami.com/bitnami"
+    condition: postgresql.enabled

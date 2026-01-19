@@ -1,0 +1,4 @@
+-- Note: PostgreSQL does not support removing values from an enum type.
+-- The 'waiting' value will remain in retro_phase enum.
+-- To fully remove it, you would need to recreate the enum type.
+-- This is a no-op migration for rollback safety.
