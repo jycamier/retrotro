@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: retrotro
+      POSTGRES_PASSWORD: retrotro
+      POSTGRES_DB: retrotro
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/migrations:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U retrotro"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      PORT: "8080"
+      DATABASE_URL: "postgres://retrotro:retrotro@postgres:5432/retrotro?sslmode=disable"
+      CORS_ORIGINS: "http://localhost:3000,http://localhost"
+      DEV_MODE: "${DEV_MODE:-true}"
+      LOGGER_LEVEL: "${LOGGER_LEVEL:-debug}"
+      LOGGER_FORMAT: "${LOGGER_FORMAT:-txt}"
+      JWT_SECRET: "${JWT_SECRET:-change-me-in-production}"
+      OIDC_ISSUER_URL: "${OIDC_ISSUER_URL:-}"
+      OIDC_CLIENT_ID: "${OIDC_CLIENT_ID:-}"
+      OIDC_CLIENT_SECRET: "${OIDC_CLIENT_SECRET:-}"
+      OIDC_REDIRECT_URL: "${OIDC_REDIRECT_URL:-http://localhost/auth/callback}"
+      OIDC_JIT_ENABLED: "${OIDC_JIT_ENABLED:-true}"
+      OIDC_JIT_GROUPS_CLAIM: "${OIDC_JIT_GROUPS_CLAIM:-groups}"
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: retrotro

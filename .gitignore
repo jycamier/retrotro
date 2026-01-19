@@ -1,0 +1,57 @@
+# Binaries
+backend/bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+coverage.html
+
+# Go workspace file
+go.work
+
+# Dependency directories
+node_modules/
+vendor/
+
+# Build outputs
+frontend/dist/
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.env.local
+.env.*.local
+*.env
+
+# Docker
+.docker/
+
+# Helm
+helm/retrotro/charts/
+
+# Secrets
+*.pem
+*.key
+secrets/
+
+# Temp files
+tmp/
+temp/
