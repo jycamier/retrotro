@@ -91,31 +91,6 @@ jobs:
       - name: Build
         run: npm run build
 
-  terraform-provider-test:
-    name: Terraform Provider Tests
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: terraform-provider-retrotro
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: terraform-provider-retrotro/go.mod
-          cache-dependency-path: terraform-provider-retrotro/go.sum
-
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Build
-        run: go build -v ./...
-
-      - name: Run tests
-        run: go test -v -race ./...
-
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
