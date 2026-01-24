@@ -1,6 +1,6 @@
 {
-  "backend": "0.1.0",
-  "frontend": "0.1.0",
-  "helm/retrotro": "0.1.0",
-  "terraform-provider-retrotro": "0.1.0"
+  "backend": "0.1.1",
+  "frontend": "0.1.1",
+  "helm/retrotro": "0.1.1",
+  "terraform-provider-retrotro": "0.1.1"
 }
