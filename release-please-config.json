@@ -3,9 +3,17 @@
   "release-type": "simple",
   "include-component-in-tag": true,
   "include-v-in-tag": true,
+  "plugins": [
+    {
+      "type": "linked-versions",
+      "groupName": "app",
+      "components": ["retrotro-backend", "retrotro-frontend", "retrotro-helm"]
+    }
+  ],
   "packages": {
     "backend": {
       "release-type": "go",
+      "component": "retrotro-backend",
       "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
@@ -22,6 +30,7 @@
     },
     "frontend": {
       "release-type": "node",
+      "component": "retrotro-frontend",
       "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
@@ -38,9 +47,27 @@
     },
     "helm/retrotro": {
       "release-type": "helm",
+      "component": "retrotro-helm",
       "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
+      "extra-files": [
+        {
+          "type": "yaml",
+          "path": "Chart.yaml",
+          "jsonpath": "$.appVersion"
+        },
+        {
+          "type": "yaml",
+          "path": "values.yaml",
+          "jsonpath": "$.backend.image.tag"
+        },
+        {
+          "type": "yaml",
+          "path": "values.yaml",
+          "jsonpath": "$.frontend.image.tag"
+        }
+      ],
       "changelog-sections": [
         { "type": "feat", "section": "Features" },
         { "type": "fix", "section": "Bug Fixes" },
@@ -49,6 +76,7 @@
     },
     "terraform-provider-retrotro": {
       "release-type": "go",
+      "component": "retrotro-terraform",
       "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": true,
