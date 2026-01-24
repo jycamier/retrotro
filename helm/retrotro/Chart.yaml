@@ -1,9 +1,9 @@
 apiVersion: v2
-name: retrotro
+name: retrotro-helm
 description: RetroTro - Agile retrospective tool
 type: application
-version: 0.1.0
-appVersion: "0.1.0"
+version: "0.0.1"
+appVersion: "0.0.1"
 keywords:
   - retrospective
   - agile

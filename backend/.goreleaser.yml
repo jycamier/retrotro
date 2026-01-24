@@ -23,6 +23,7 @@ builds:
 kos:
   - id: backend
     build: server
+    bare: true
     base_image: cgr.dev/chainguard/static:latest
     repository: ghcr.io/jycamier/retrotro-backend
     platforms:
