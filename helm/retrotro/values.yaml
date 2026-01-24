@@ -1,23 +1,15 @@
-# Default values for retrotro
-
-# Global settings
 global:
-  imageRegistry: ""
+  imageRegistry: ''
   imagePullSecrets: []
-
-# Backend configuration
 backend:
   replicaCount: 2
-
   image:
     repository: ghcr.io/jycamier/retrotro-backend
-    tag: latest
+    tag: 0.0.2
     pullPolicy: Always
-
   service:
     type: ClusterIP
     port: 8080
-
   resources:
     limits:
       cpu: 500m
@@ -25,36 +17,24 @@ backend:
     requests:
       cpu: 100m
       memory: 128Mi
-
   autoscaling:
     enabled: false
     minReplicas: 2
     maxReplicas: 10
     targetCPUUtilizationPercentage: 80
-
-  corsOrigins: "http://localhost:3000"
-
+  corsOrigins: http://localhost:3000
   env:
-    PORT: "8080"
-
-  # Additional environment variables from secrets
+    PORT: '8080'
   envFromSecrets: []
-  # - secretName: retrotro-secrets
-  #   key: JWT_SECRET
-
-# Frontend configuration
 frontend:
   replicaCount: 2
-
   image:
     repository: ghcr.io/jycamier/retrotro-frontend
-    tag: latest
+    tag: 0.0.2
     pullPolicy: Always
-
   service:
     type: ClusterIP
     port: 3000
-
   resources:
     limits:
       cpu: 200m
@@ -62,14 +42,11 @@ frontend:
     requests:
       cpu: 50m
       memory: 64Mi
-
   autoscaling:
     enabled: false
     minReplicas: 2
     maxReplicas: 10
     targetCPUUtilizationPercentage: 80
-
-  # Caddyfile configuration
   caddyfile: |
     :3000 {
         # Health check endpoint
@@ -99,15 +76,13 @@ frontend:
             X-XSS-Protection "1; mode=block"
         }
     }
-
-# Ingress configuration (legacy - use httpRoute for Gateway API)
 ingress:
   enabled: false
   className: nginx
   annotations:
-    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
-    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
-    nginx.ingress.kubernetes.io/websocket-services: "retrotro-backend"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: '3600'
+    nginx.ingress.kubernetes.io/proxy-send-timeout: '3600'
+    nginx.ingress.kubernetes.io/websocket-services: retrotro-backend
   hosts:
     - host: retrotro.local
       paths:
@@ -124,11 +99,6 @@ ingress:
           pathType: Prefix
           backend: backend
   tls: []
-  # - secretName: retrotro-tls
-  #   hosts:
-  #     - retrotro.local
-
-# HTTPRoute configuration (Gateway API)
 httpRoute:
   enabled: true
   annotations: {}
@@ -136,15 +106,13 @@ httpRoute:
   gatewayNamespace: demo
   hostnames:
     - retrotro.k8s.camier.family
-
-# PostgreSQL configuration (bitnami/postgresql subchart)
 postgresql:
   enabled: true
   auth:
     database: retrotro
     username: retrotro
-    password: ""  # Set via --set or secret
-    existingSecret: ""
+    password: ''
+    existingSecret: ''
   primary:
     persistence:
       enabled: true
@@ -156,72 +124,48 @@ postgresql:
       requests:
         cpu: 100m
         memory: 256Mi
-
-# Database URL (when postgresql.enabled=false)
-databaseUrl: ""
-
-# OIDC configuration
+databaseUrl: ''
 oidc:
-  issuerUrl: ""
-  clientId: ""
-  clientSecret: ""
-  existingSecret: ""        # Use existing secret instead of creating one
-  existingSecretKey: "oidc-client-secret"  # Key in the existing secret
-  redirectUrl: ""
-  scopes: "openid,profile,email,groups"
-
-  # JIT provisioning configuration
+  issuerUrl: ''
+  clientId: ''
+  clientSecret: ''
+  existingSecret: ''
+  existingSecretKey: oidc-client-secret
+  redirectUrl: ''
+  scopes: openid,profile,email,groups
   jit:
     enabled: true
-    groupsClaim: "groups"
-    groupsPrefix: ""
-    defaultRole: "member"
+    groupsClaim: groups
+    groupsPrefix: ''
+    defaultRole: member
     adminGroups: []
     facilitatorGroups: []
     syncOnLogin: true
     removeStaleMembers: false
-
-# JWT configuration
 jwt:
-  secret: ""  # Set via --set or secret
-  existingSecret: ""
-  accessTokenTTL: 15  # minutes
-  refreshTokenTTL: 168  # hours (7 days)
-
-# Service account
+  secret: ''
+  existingSecret: ''
+  accessTokenTTL: 15
+  refreshTokenTTL: 168
 serviceAccount:
   create: true
   annotations: {}
-  name: ""
-
-# Pod security context
+  name: ''
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 1000
   fsGroup: 1000
-
-# Container security context
 securityContext:
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
   capabilities:
     drop:
       - ALL
-
-# Node selector
 nodeSelector: {}
-
-# Tolerations
 tolerations: []
-
-# Affinity
 affinity: {}
-
-# Pod disruption budget
 podDisruptionBudget:
   enabled: true
   minAvailable: 1
-
-# Network policies
 networkPolicy:
   enabled: false
