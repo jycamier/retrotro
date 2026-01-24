@@ -25,7 +25,7 @@ on:
         type: string
 
 permissions:
-  contents: read
+  contents: write
   packages: write
   id-token: write
 
@@ -83,6 +83,7 @@ jobs:
         env:
           KO_DOCKER_REPO: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: v${{ inputs.version }}
         run: |
           goreleaser release --clean --skip=validate --skip=announce
 
