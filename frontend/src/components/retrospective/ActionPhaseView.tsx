@@ -53,7 +53,14 @@ export default function ActionPhaseView({
 
   const getParticipantName = (userId: string): string => {
     const participant = participants.find(p => p.userId === userId)
-    return participant?.name || 'Unknown'
+    if (participant) {
+      return participant.name
+    }
+    // If no participants yet, show loading indicator
+    if (participants.length === 0) {
+      return '...'
+    }
+    return 'Inconnu'
   }
 
   const formatDate = (dateStr?: string): string => {

@@ -220,11 +220,25 @@ func (h *WebSocketHandler) handleJoinRetro(client *ws.Client, payload json.RawMe
 		RetroID string `json:"retroId"`
 	}
 	if err := json.Unmarshal(payload, &data); err != nil {
+		h.hub.SendToClient(client, ws.Message{
+			Type: "error",
+			Payload: map[string]interface{}{
+				"code":    "invalid_payload",
+				"message": "Invalid join request payload",
+			},
+		})
 		return
 	}
 
 	retroID, err := uuid.Parse(data.RetroID)
 	if err != nil {
+		h.hub.SendToClient(client, ws.Message{
+			Type: "error",
+			Payload: map[string]interface{}{
+				"code":    "invalid_retro_id",
+				"message": "Invalid retrospective ID",
+			},
+		})
 		return
 	}
 
@@ -243,6 +257,18 @@ func (h *WebSocketHandler) handleJoinRetro(client *ws.Client, payload json.RawMe
 	// Send current retro state
 	retro, err := h.retroService.GetByID(context.Background(), retroID)
 	if err != nil {
+		slog.Error("failed to get retro for join",
+			"retroId", retroID.String(),
+			"userId", client.UserID.String(),
+			"error", err,
+		)
+		h.hub.SendToClient(client, ws.Message{
+			Type: "error",
+			Payload: map[string]interface{}{
+				"code":    "join_failed",
+				"message": "Failed to join retrospective. Please try again.",
+			},
+		})
 		return
 	}
 

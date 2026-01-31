@@ -21,7 +21,7 @@ export default function RetroBoardPage() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const { retro, participants, items, actions, currentPhase, moods, rotiVotedUserIds, rotiResults, teamMembers, reset } = useRetroStore()
-  const { isConnected, send, disconnect } = useWebSocket(retroId)
+  const { isConnected, connectionError, send, disconnect } = useWebSocket(retroId)
   const [isDiscussionOpen, setIsDiscussionOpen] = useState(false)
   const [showSummary, setShowSummary] = useState(false)
 
@@ -58,7 +58,18 @@ export default function RetroBoardPage() {
 
   const getAuthorName = (authorId: string): string => {
     const participant = participants.find(p => p.userId === authorId)
-    return participant?.name || 'Unknown'
+    if (participant) {
+      return participant.name
+    }
+    // If no participants but we have items, we're likely in a loading state (page reload)
+    if (participants.length === 0 && items.length > 0) {
+      return '...'
+    }
+    // Check if the author is the current user
+    if (authorId === user?.id && user?.displayName) {
+      return user.displayName
+    }
+    return 'Inconnu'
   }
 
   const handleLeave = () => {
@@ -82,8 +93,27 @@ export default function RetroBoardPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-100">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Connecting to retrospective...</p>
+          {connectionError ? (
+            <>
+              <div className="text-red-500 mb-4">
+                <WifiOff className="w-12 h-12 mx-auto" />
+              </div>
+              <p className="text-red-600 font-medium">{connectionError}</p>
+              <button
+                onClick={() => window.location.reload()}
+                className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+              >
+                Rafraîchir la page
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto"></div>
+              <p className="mt-4 text-gray-600">
+                {isConnected ? 'Chargement de la rétrospective...' : 'Connexion en cours...'}
+              </p>
+            </>
+          )}
         </div>
       </div>
     )
