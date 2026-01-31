@@ -16,6 +16,8 @@ const (
 	pongWait       = 60 * time.Second
 	pingPeriod     = (pongWait * 9) / 10
 	maxMessageSize = 8192
+	// Grace period before broadcasting participant_left to handle page reloads
+	disconnectGracePeriod = 2 * time.Second
 )
 
 // Message represents a WebSocket message
@@ -35,15 +37,24 @@ type Client struct {
 	Send     chan []byte
 }
 
+// PendingDisconnect tracks a user who disconnected but may reconnect (page reload)
+type PendingDisconnect struct {
+	UserID   uuid.UUID
+	RoomID   string
+	Timer    *time.Timer
+	Canceled bool
+}
+
 // Hub manages WebSocket connections
 type Hub struct {
-	clients        map[*Client]bool
-	rooms          map[string]map[*Client]bool
-	register       chan *Client
-	unregister     chan *Client
-	broadcast      chan *RoomMessage
-	mu             sync.RWMutex
-	OnUserLeftRoom func(roomID string, userID uuid.UUID) // Callback when user leaves room
+	clients            map[*Client]bool
+	rooms              map[string]map[*Client]bool
+	register           chan *Client
+	unregister         chan *Client
+	broadcast          chan *RoomMessage
+	mu                 sync.RWMutex
+	pendingDisconnects map[string]*PendingDisconnect // key: "roomID-userID"
+	OnUserLeftRoom     func(roomID string, userID uuid.UUID) // Callback when user leaves room
 }
 
 // RoomMessage is a message to broadcast to a room
@@ -56,11 +67,12 @@ type RoomMessage struct {
 // NewHub creates a new Hub
 func NewHub() *Hub {
 	return &Hub{
-		clients:    make(map[*Client]bool),
-		rooms:      make(map[string]map[*Client]bool),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
-		broadcast:  make(chan *RoomMessage, 256),
+		clients:            make(map[*Client]bool),
+		rooms:              make(map[string]map[*Client]bool),
+		register:           make(chan *Client),
+		unregister:         make(chan *Client),
+		broadcast:          make(chan *RoomMessage, 256),
+		pendingDisconnects: make(map[string]*PendingDisconnect),
 	}
 }
 
@@ -82,6 +94,18 @@ func (h *Hub) Run() {
 					h.rooms[client.RoomID] = make(map[*Client]bool)
 				}
 				h.rooms[client.RoomID][client] = true
+
+				// Cancel any pending disconnect for this user in this room (page reload case)
+				pendingKey := client.RoomID + "-" + client.UserID.String()
+				if pending, exists := h.pendingDisconnects[pendingKey]; exists {
+					slog.Debug("hub: canceling pending disconnect (user reconnected)",
+						"userId", client.UserID.String(),
+						"roomId", client.RoomID,
+					)
+					pending.Canceled = true
+					pending.Timer.Stop()
+					delete(h.pendingDisconnects, pendingKey)
+				}
 			}
 			slog.Debug("hub: client registered",
 				"totalClients", len(h.clients),
@@ -128,28 +152,75 @@ func (h *Hub) Run() {
 					if len(h.rooms[roomID]) == 0 {
 						delete(h.rooms, roomID)
 					}
-					// Broadcast participant_left only if user has no more connections
+					// Schedule participant_left broadcast with grace period (for page reload handling)
 					if !userStillInRoom && roomID != "" {
-						slog.Debug("hub: broadcasting participant_left and calling callback",
-							"userId", userID.String(),
-							"roomId", roomID,
-						)
-						h.mu.Unlock()
-						h.BroadcastToRoom(roomID, Message{
-							Type: "participant_left",
-							Payload: map[string]interface{}{
-								"userId": userID,
-							},
-						})
-						// Call callback if set (for team_members_updated broadcast)
-						if h.OnUserLeftRoom != nil {
-							slog.Debug("hub: calling OnUserLeftRoom callback",
-								"roomId", roomID,
+						pendingKey := roomID + "-" + userID.String()
+						// Only schedule if not already pending
+						if _, exists := h.pendingDisconnects[pendingKey]; !exists {
+							slog.Debug("hub: scheduling participant_left with grace period",
 								"userId", userID.String(),
+								"roomId", roomID,
+								"gracePeriod", disconnectGracePeriod,
 							)
-							h.OnUserLeftRoom(roomID, userID)
+							pending := &PendingDisconnect{
+								UserID:   userID,
+								RoomID:   roomID,
+								Canceled: false,
+							}
+							h.pendingDisconnects[pendingKey] = pending
+
+							// Start timer for delayed broadcast
+							pending.Timer = time.AfterFunc(disconnectGracePeriod, func() {
+								h.mu.Lock()
+								// Check if still pending (not canceled by reconnection)
+								if p, exists := h.pendingDisconnects[pendingKey]; exists && !p.Canceled {
+									delete(h.pendingDisconnects, pendingKey)
+									// Double-check user hasn't reconnected
+									stillInRoom := false
+									if room, roomExists := h.rooms[roomID]; roomExists {
+										for c := range room {
+											if c.UserID == userID {
+												stillInRoom = true
+												break
+											}
+										}
+									}
+									h.mu.Unlock()
+
+									if !stillInRoom {
+										slog.Debug("hub: grace period expired, broadcasting participant_left",
+											"userId", userID.String(),
+											"roomId", roomID,
+										)
+										h.BroadcastToRoom(roomID, Message{
+											Type: "participant_left",
+											Payload: map[string]interface{}{
+												"userId": userID,
+											},
+										})
+										// Call callback if set (for team_members_updated broadcast)
+										if h.OnUserLeftRoom != nil {
+											slog.Debug("hub: calling OnUserLeftRoom callback",
+												"roomId", roomID,
+												"userId", userID.String(),
+											)
+											h.OnUserLeftRoom(roomID, userID)
+										}
+									} else {
+										slog.Debug("hub: user reconnected during grace period, skipping broadcast",
+											"userId", userID.String(),
+											"roomId", roomID,
+										)
+									}
+								} else {
+									h.mu.Unlock()
+									slog.Debug("hub: pending disconnect was canceled",
+										"userId", userID.String(),
+										"roomId", roomID,
+									)
+								}
+							})
 						}
-						h.mu.Lock()
 					}
 				} else {
 					slog.Debug("hub: roomID is empty, skipping broadcast",

@@ -80,9 +80,21 @@ export default function RetroBoard({
   }
 
   // Helper to get author name from authorId
+  // Returns a loading indicator if participants list is empty but items exist (reload in progress)
   const getAuthorName = (authorId: string): string => {
     const participant = participants.find(p => p.userId === authorId)
-    return participant?.name || 'Unknown'
+    if (participant) {
+      return participant.name
+    }
+    // If no participants but we have items, we're likely in a loading state (page reload)
+    if (participants.length === 0 && items.length > 0) {
+      return '...'
+    }
+    // Check if the author is the current user (might not be in participants list yet)
+    if (authorId === user?.id && user?.displayName) {
+      return user.displayName
+    }
+    return 'Inconnu'
   }
 
   // Get items that are children of a parent (grouped under it)

@@ -239,7 +239,7 @@ export default function ItemCard({
                 <div className="mt-2 pl-3 border-l-2 border-gray-200 space-y-2">
                   {groupedItems.map((grouped) => {
                     const groupedColumnName = getColumnName?.(grouped.columnId) || grouped.columnId
-                    const groupedAuthorName = getAuthorName?.(grouped.authorId) || 'Unknown'
+                    const groupedAuthorName = getAuthorName?.(grouped.authorId) || '...'
                     return (
                       <div key={grouped.id} className="text-xs">
                         <div className="flex flex-wrap gap-1 mb-1">

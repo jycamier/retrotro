@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { useRetroStore } from '../store/retroStore'
-import type { WSMessage, Item, RetroPhase, IcebreakerMood, RotiResults, MoodWeather, TeamMemberStatus, DraftItem } from '../types'
+import type { WSMessage, Item, RetroPhase, IcebreakerMood, RotiResults, MoodWeather, TeamMemberStatus, DraftItem, Participant } from '../types'
 
 interface ExtendedRetroState {
   retro: import('../types').Retrospective
@@ -17,28 +17,101 @@ interface ExtendedRetroState {
 
 const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
 
+// Session storage keys for backup state during reload
+const PARTICIPANTS_BACKUP_KEY = 'retro-participants-backup'
+const STATE_RECEIVED_KEY = 'retro-state-received'
+
+// Helper to save participants to sessionStorage as backup
+function saveParticipantsBackup(retroId: string, participants: Participant[]) {
+  try {
+    sessionStorage.setItem(`${PARTICIPANTS_BACKUP_KEY}-${retroId}`, JSON.stringify(participants))
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+// Helper to restore participants from sessionStorage backup
+function restoreParticipantsBackup(retroId: string): Participant[] | null {
+  try {
+    const backup = sessionStorage.getItem(`${PARTICIPANTS_BACKUP_KEY}-${retroId}`)
+    if (backup) {
+      return JSON.parse(backup)
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return null
+}
+
+// Helper to clear participants backup
+function clearParticipantsBackup(retroId: string) {
+  try {
+    sessionStorage.removeItem(`${PARTICIPANTS_BACKUP_KEY}-${retroId}`)
+    sessionStorage.removeItem(`${STATE_RECEIVED_KEY}-${retroId}`)
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export function useWebSocket(retroId: string | undefined) {
   const { accessToken } = useAuthStore()
   const retroStore = useRetroStore()
   const wsRef = useRef<WebSocket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
+  const [isStateLoaded, setIsStateLoaded] = useState(false)
+  const isStateLoadedRef = useRef(false) // Ref for use in timeouts (avoids closure issues)
+  const [connectionError, setConnectionError] = useState<string | null>(null)
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  const stateTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
   const reconnectAttempts = useRef(0)
+  const joinRetryAttempts = useRef(0)
   const maxReconnectAttempts = 5
+  const maxJoinRetryAttempts = 3
   const intentionalDisconnectRef = useRef(false)
 
   const connect = useCallback(() => {
     if (!retroId || !accessToken) return
 
     console.log('[WS] connect() called, reconnectAttempts:', reconnectAttempts.current)
+
+    // Restore participants backup while waiting for retro_state
+    const backupParticipants = restoreParticipantsBackup(retroId)
+    if (backupParticipants && backupParticipants.length > 0) {
+      console.log('[WS] Restoring participants from backup:', backupParticipants.length)
+      retroStore.setParticipants(backupParticipants)
+    }
+
     const ws = new WebSocket(`${WS_URL}?token=${accessToken}`)
     wsRef.current = ws
 
     ws.onopen = () => {
       setIsConnected(true)
+      setConnectionError(null)
       reconnectAttempts.current = 0
+      joinRetryAttempts.current = 0
+
       // Join retro room
       send('join_retro', { retroId })
+
+      // Set timeout to retry join if retro_state doesn't arrive
+      if (stateTimeoutRef.current) {
+        clearTimeout(stateTimeoutRef.current)
+      }
+      stateTimeoutRef.current = setTimeout(() => {
+        if (!isStateLoadedRef.current && joinRetryAttempts.current < maxJoinRetryAttempts) {
+          console.log('[WS] retro_state not received, retrying join_retro, attempt:', joinRetryAttempts.current + 1)
+          joinRetryAttempts.current++
+          send('join_retro', { retroId })
+
+          // Set another timeout for next retry
+          stateTimeoutRef.current = setTimeout(() => {
+            if (!isStateLoadedRef.current) {
+              console.error('[WS] Failed to receive retro_state after retries')
+              setConnectionError('Impossible de charger l\'état de la rétrospective. Veuillez rafraîchir la page.')
+            }
+          }, 5000)
+        }
+      }, 3000)
     }
 
     ws.onclose = () => {
@@ -88,10 +161,26 @@ export function useWebSocket(retroId: string | undefined) {
     switch (type) {
       case 'retro_state': {
         const state = payload as ExtendedRetroState
+        console.log('[WS] retro_state received, participants:', state.participants?.length)
+
+        // Clear the state timeout since we received the state
+        if (stateTimeoutRef.current) {
+          clearTimeout(stateTimeoutRef.current)
+        }
+        setIsStateLoaded(true)
+        isStateLoadedRef.current = true
+        setConnectionError(null)
+
         retroStore.setRetro(state.retro)
         retroStore.setItems(state.items || [])
         retroStore.setActions(state.actions || [])
         retroStore.setParticipants(state.participants || [])
+
+        // Save participants backup for reload recovery
+        if (retroId && state.participants) {
+          saveParticipantsBackup(retroId, state.participants)
+        }
+
         if (state.timerRunning && state.timerRemaining > 0) {
           const endAt = new Date(Date.now() + state.timerRemaining * 1000)
           retroStore.setTimerStarted(state.timerRemaining, endAt.toISOString())
@@ -108,6 +197,13 @@ export function useWebSocket(retroId: string | undefined) {
         if (state.teamMembers) {
           retroStore.setTeamMembers(state.teamMembers)
         }
+        break
+      }
+
+      case 'error': {
+        const { code, message: errorMessage } = payload as { code: string; message: string }
+        console.error('[WS] Server error:', code, errorMessage)
+        setConnectionError(errorMessage)
         break
       }
 
@@ -134,6 +230,11 @@ export function useWebSocket(retroId: string | undefined) {
       case 'participant_joined': {
         const { userId, name } = payload as { userId: string; name: string }
         retroStore.addParticipant({ userId, name })
+        // Update backup (use store directly to get current state)
+        if (retroId) {
+          const currentParticipants = useRetroStore.getState().participants
+          saveParticipantsBackup(retroId, currentParticipants)
+        }
         break
       }
 
@@ -142,6 +243,11 @@ export function useWebSocket(retroId: string | undefined) {
         retroStore.removeParticipant(userId)
         // Also update team member status for waiting room
         retroStore.updateTeamMemberStatus(userId, false)
+        // Update backup (use store directly to get current state)
+        if (retroId) {
+          const currentParticipants = useRetroStore.getState().participants
+          saveParticipantsBackup(retroId, currentParticipants)
+        }
         break
       }
 
@@ -274,13 +380,22 @@ export function useWebSocket(retroId: string | undefined) {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current)
     }
+    if (stateTimeoutRef.current) {
+      clearTimeout(stateTimeoutRef.current)
+    }
     if (wsRef.current) {
       send('leave_retro', {})
       wsRef.current.close()
       wsRef.current = null
     }
     setIsConnected(false)
-  }, [send])
+    setIsStateLoaded(false)
+    isStateLoadedRef.current = false
+    // Clear backup when user intentionally leaves
+    if (retroId) {
+      clearParticipantsBackup(retroId)
+    }
+  }, [send, retroId])
 
   useEffect(() => {
     connect()
@@ -289,17 +404,23 @@ export function useWebSocket(retroId: string | undefined) {
     const handleBeforeUnload = () => {
       console.log('[WS] beforeunload triggered, marking disconnect as intentional')
       intentionalDisconnectRef.current = true
+      // Note: We keep the backup on beforeunload for page reload recovery
     }
     window.addEventListener('beforeunload', handleBeforeUnload)
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload)
+      if (stateTimeoutRef.current) {
+        clearTimeout(stateTimeoutRef.current)
+      }
       disconnect()
     }
   }, [connect, disconnect])
 
   return {
     isConnected,
+    isStateLoaded,
+    connectionError,
     send,
     disconnect,
   }
