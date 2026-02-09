@@ -52,6 +52,13 @@ helm/retrotro/charts/
 *.key
 secrets/
 
+# Tests
+tests/node_modules/
+tests/test-results/
+tests/playwright-report/
+
 # Temp files
 tmp/
 temp/
+
+helm/retrotro/Chart.lock
