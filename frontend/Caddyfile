@@ -4,6 +4,17 @@
         respond "OK" 200
     }
 
+    # Reverse proxy API and auth to backend
+    handle /api/* {
+        reverse_proxy backend:8080
+    }
+    handle /auth/* {
+        reverse_proxy backend:8080
+    }
+    handle /ws {
+        reverse_proxy backend:8080
+    }
+
     # Static files and SPA
     handle {
         root * /srv
