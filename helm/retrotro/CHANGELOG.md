@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.3](https://github.com/jycamier/retrotro/compare/retrotro-helm-v0.0.2...retrotro-helm-v0.0.3) (2026-02-09)
+
+
+### Miscellaneous
+
+* **retrotro-helm:** Synchronize app versions
+
 ## [0.0.2](https://github.com/jycamier/retrotro/compare/retrotro-helm-v0.0.1...retrotro-helm-v0.0.2) (2026-01-24)
 
 
