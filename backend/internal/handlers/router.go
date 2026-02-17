@@ -108,6 +108,7 @@ func NewRouter(
 
 				// Team actions from completed retrospectives
 				r.Get("/actions", retroHandler.ListTeamActions)
+				r.Patch("/actions/{actionId}", retroHandler.PatchTeamAction)
 
 				// Webhooks
 				r.Route("/webhooks", func(r chi.Router) {

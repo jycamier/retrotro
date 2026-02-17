@@ -196,6 +196,7 @@ type ActionItem struct {
 	AssigneeID  *uuid.UUID `json:"assigneeId,omitempty" db:"assignee_id"`
 	DueDate     *time.Time `json:"dueDate,omitempty" db:"due_date"`
 	IsCompleted bool       `json:"isCompleted" db:"is_completed"`
+	Status      string     `json:"status" db:"status"`
 	CompletedAt *time.Time `json:"completedAt,omitempty" db:"completed_at"`
 	Priority    int        `json:"priority" db:"priority"`
 	ExternalID  *string    `json:"externalId,omitempty" db:"external_id"`

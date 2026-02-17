@@ -538,6 +538,12 @@ type CreateActionInput struct {
 	Priority    int
 }
 
+// PatchActionInput represents input for partially updating an action item
+type PatchActionInput struct {
+	Status     *string    `json:"status"`
+	AssigneeID *uuid.UUID `json:"assigneeId"`
+}
+
 // CreateAction creates a new action item
 func (s *RetrospectiveService) CreateAction(ctx context.Context, retroID, createdBy uuid.UUID, input CreateActionInput) (*models.ActionItem, error) {
 	action := &models.ActionItem{
@@ -644,6 +650,38 @@ func (s *RetrospectiveService) UncompleteAction(ctx context.Context, id uuid.UUI
 
 	action.IsCompleted = false
 	action.CompletedAt = nil
+
+	if err := s.actionRepo.Update(ctx, action); err != nil {
+		return nil, err
+	}
+
+	return action, nil
+}
+
+// PatchAction partially updates an action item (status, assignee)
+func (s *RetrospectiveService) PatchAction(ctx context.Context, id uuid.UUID, input PatchActionInput) (*models.ActionItem, error) {
+	action, err := s.actionRepo.FindByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, postgres.ErrNotFound) {
+			return nil, ErrActionNotFound
+		}
+		return nil, err
+	}
+
+	if input.Status != nil {
+		action.Status = *input.Status
+		if *input.Status == "done" {
+			now := time.Now()
+			action.IsCompleted = true
+			action.CompletedAt = &now
+		} else {
+			action.IsCompleted = false
+			action.CompletedAt = nil
+		}
+	}
+	if input.AssigneeID != nil {
+		action.AssigneeID = input.AssigneeID
+	}
 
 	if err := s.actionRepo.Update(ctx, action); err != nil {
 		return nil, err

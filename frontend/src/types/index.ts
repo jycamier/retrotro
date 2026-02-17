@@ -107,6 +107,7 @@ export interface ActionItem {
   assigneeId?: string
   dueDate?: string
   isCompleted: boolean
+  status: 'todo' | 'in_progress' | 'done'
   completedAt?: string
   priority: number
   externalId?: string

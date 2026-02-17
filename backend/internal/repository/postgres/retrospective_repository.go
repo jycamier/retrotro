@@ -571,7 +571,7 @@ func NewActionItemRepository(pool *pgxpool.Pool) *ActionItemRepository {
 func (r *ActionItemRepository) FindByID(ctx context.Context, id uuid.UUID) (*models.ActionItem, error) {
 	query := `
 		SELECT id, retro_id, item_id, title, description, assignee_id, due_date,
-		       is_completed, completed_at, priority, external_id, external_url,
+		       is_completed, status, completed_at, priority, external_id, external_url,
 		       created_by, created_at, updated_at
 		FROM action_items WHERE id = $1
 	`
@@ -579,7 +579,7 @@ func (r *ActionItemRepository) FindByID(ctx context.Context, id uuid.UUID) (*mod
 	var action models.ActionItem
 	err := r.pool.QueryRow(ctx, query, id).Scan(
 		&action.ID, &action.RetroID, &action.ItemID, &action.Title, &action.Description,
-		&action.AssigneeID, &action.DueDate, &action.IsCompleted, &action.CompletedAt,
+		&action.AssigneeID, &action.DueDate, &action.IsCompleted, &action.Status, &action.CompletedAt,
 		&action.Priority, &action.ExternalID, &action.ExternalURL, &action.CreatedBy,
 		&action.CreatedAt, &action.UpdatedAt,
 	)
@@ -598,7 +598,7 @@ func (r *ActionItemRepository) FindByID(ctx context.Context, id uuid.UUID) (*mod
 func (r *ActionItemRepository) ListByRetro(ctx context.Context, retroID uuid.UUID) ([]*models.ActionItem, error) {
 	query := `
 		SELECT id, retro_id, item_id, title, description, assignee_id, due_date,
-		       is_completed, completed_at, priority, external_id, external_url,
+		       is_completed, status, completed_at, priority, external_id, external_url,
 		       created_by, created_at, updated_at
 		FROM action_items WHERE retro_id = $1
 		ORDER BY priority DESC, created_at
@@ -615,7 +615,7 @@ func (r *ActionItemRepository) ListByRetro(ctx context.Context, retroID uuid.UUI
 		var action models.ActionItem
 		err := rows.Scan(
 			&action.ID, &action.RetroID, &action.ItemID, &action.Title, &action.Description,
-			&action.AssigneeID, &action.DueDate, &action.IsCompleted, &action.CompletedAt,
+			&action.AssigneeID, &action.DueDate, &action.IsCompleted, &action.Status, &action.CompletedAt,
 			&action.Priority, &action.ExternalID, &action.ExternalURL, &action.CreatedBy,
 			&action.CreatedAt, &action.UpdatedAt,
 		)
@@ -632,8 +632,8 @@ func (r *ActionItemRepository) ListByRetro(ctx context.Context, retroID uuid.UUI
 func (r *ActionItemRepository) Create(ctx context.Context, action *models.ActionItem) (*models.ActionItem, error) {
 	query := `
 		INSERT INTO action_items (id, retro_id, item_id, title, description, assignee_id,
-		                          due_date, priority, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		                          due_date, priority, status, created_by)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING id, created_at, updated_at
 	`
 
@@ -643,7 +643,7 @@ func (r *ActionItemRepository) Create(ctx context.Context, action *models.Action
 
 	err := r.pool.QueryRow(ctx, query,
 		action.ID, action.RetroID, action.ItemID, action.Title, action.Description,
-		action.AssigneeID, action.DueDate, action.Priority, action.CreatedBy,
+		action.AssigneeID, action.DueDate, action.Priority, action.Status, action.CreatedBy,
 	).Scan(&action.ID, &action.CreatedAt, &action.UpdatedAt)
 
 	if err != nil {
@@ -659,14 +659,14 @@ func (r *ActionItemRepository) Update(ctx context.Context, action *models.Action
 		UPDATE action_items
 		SET title = $2, description = $3, assignee_id = $4, due_date = $5,
 		    is_completed = $6, completed_at = $7, priority = $8,
-		    external_id = $9, external_url = $10, updated_at = NOW()
+		    external_id = $9, external_url = $10, status = $11, updated_at = NOW()
 		WHERE id = $1
 	`
 
 	_, err := r.pool.Exec(ctx, query,
 		action.ID, action.Title, action.Description, action.AssigneeID, action.DueDate,
 		action.IsCompleted, action.CompletedAt, action.Priority,
-		action.ExternalID, action.ExternalURL,
+		action.ExternalID, action.ExternalURL, action.Status,
 	)
 	return err
 }
@@ -682,7 +682,7 @@ func (r *ActionItemRepository) Delete(ctx context.Context, id uuid.UUID) error {
 func (r *ActionItemRepository) ListByTeam(ctx context.Context, teamID uuid.UUID) ([]*models.ActionItem, error) {
 	query := `
 		SELECT ai.id, ai.retro_id, ai.item_id, ai.title, ai.description, ai.assignee_id, ai.due_date,
-		       ai.is_completed, ai.completed_at, ai.priority, ai.external_id, ai.external_url,
+		       ai.is_completed, ai.status, ai.completed_at, ai.priority, ai.external_id, ai.external_url,
 		       ai.created_by, ai.created_at, ai.updated_at,
 		       r.name as retro_name
 		FROM action_items ai
@@ -703,7 +703,7 @@ func (r *ActionItemRepository) ListByTeam(ctx context.Context, teamID uuid.UUID)
 		var retroName sql.NullString
 		err := rows.Scan(
 			&action.ID, &action.RetroID, &action.ItemID, &action.Title, &action.Description,
-			&action.AssigneeID, &action.DueDate, &action.IsCompleted, &action.CompletedAt,
+			&action.AssigneeID, &action.DueDate, &action.IsCompleted, &action.Status, &action.CompletedAt,
 			&action.Priority, &action.ExternalID, &action.ExternalURL, &action.CreatedBy,
 			&action.CreatedAt, &action.UpdatedAt,
 			&retroName,

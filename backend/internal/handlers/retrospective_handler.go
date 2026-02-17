@@ -843,6 +843,32 @@ func (h *RetrospectiveHandler) GetRotiResults(w http.ResponseWriter, r *http.Req
 	_ = json.NewEncoder(w).Encode(results)
 }
 
+// PatchTeamAction partially updates a team action item (status, assignee)
+func (h *RetrospectiveHandler) PatchTeamAction(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	actionID, err := uuid.Parse(chi.URLParam(r, "actionId"))
+	if err != nil {
+		http.Error(w, `{"error": "invalid action ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	var req services.PatchActionInput
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, `{"error": "invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	action, err := h.retroService.PatchAction(ctx, actionID, req)
+	if err != nil {
+		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(action)
+}
+
 // GetIcebreakerMoods returns icebreaker moods for a retrospective
 func (h *RetrospectiveHandler) GetIcebreakerMoods(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

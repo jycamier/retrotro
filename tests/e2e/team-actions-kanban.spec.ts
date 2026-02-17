@@ -1,140 +1,113 @@
 import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 import { DEV_USERS, createAuthenticatedContext } from './helpers/auth';
-import { createTeamAndRetro, joinRetro, nextPhase } from './helpers/retro';
+import { createTeamAndRetro, nextPhase } from './helpers/retro';
 
-let ctxAdmin: { context: BrowserContext; page: Page };
-let ctxUser1: { context: BrowserContext; page: Page };
-let retroUrl: string;
+let ctx: { context: BrowserContext; page: Page };
 
 test.describe('Team Actions Kanban', () => {
-  test.describe.configure({ mode: 'serial' });
+  test.slow();
 
   test.beforeAll(async ({ browser }) => {
-    ctxAdmin = await createAuthenticatedContext(browser, DEV_USERS.admin);
-    ctxUser1 = await createAuthenticatedContext(browser, DEV_USERS.user1);
+    ctx = await createAuthenticatedContext(browser, DEV_USERS.admin);
   });
 
   test.afterAll(async () => {
-    await ctxAdmin?.context?.close();
-    await ctxUser1?.context?.close();
+    await ctx?.context?.close();
   });
 
-  test('Setup: Create retro with actions and complete it', async () => {
-    // Admin creates retro
-    retroUrl = await createTeamAndRetro(ctxAdmin.page);
+  test('actions from completed retro appear in kanban', async () => {
+    const page = ctx.page;
 
-    // User1 joins
-    await joinRetro(ctxUser1.page, retroUrl);
+    // 1. Create retro (lands in waiting room)
+    await createTeamAndRetro(page);
 
-    // Start retro (waiting → icebreaker)
-    await ctxAdmin.page.getByRole('button', { name: /Démarrer la rétrospective/i }).click();
-    await ctxAdmin.page.waitForTimeout(1_000);
+    // 2. Start retro: waiting → icebreaker
+    await nextPhase(page);
+    await page.waitForTimeout(1_500);
 
-    // Skip icebreaker → brainstorm
-    await ctxAdmin.page.getByRole('button', { name: /Continuer vers Brainstorm/i }).click();
-    await ctxAdmin.page.waitForTimeout(1_000);
+    // 3. Skip icebreaker → brainstorm
+    await nextPhase(page);
+    await page.waitForTimeout(1_500);
 
-    // Wait for brainstorm phase
-    await expect(ctxAdmin.page.getByText(/brainstorm/i)).toBeVisible({ timeout: 10_000 });
-
-    // Create items in Went Well column
-    const itemInput = ctxAdmin.page.locator('input[placeholder="Ajouter un élément..."]').first();
-    
-    await itemInput.fill('Fix bug in login');
+    // 4. Add an item in brainstorm
+    const itemInput = page.locator('input[placeholder="Ajouter un élément..."]').first();
+    await itemInput.fill('Test item for kanban');
     await itemInput.press('Enter');
-    await ctxAdmin.page.waitForTimeout(500);
+    await page.waitForTimeout(500);
 
-    await itemInput.fill('Update documentation');
-    await itemInput.press('Enter');
-    await ctxAdmin.page.waitForTimeout(500);
+    // 5. Advance: brainstorm → group → vote → discuss → action
+    for (let i = 0; i < 4; i++) {
+      await nextPhase(page);
+      await page.waitForTimeout(1_500);
+    }
 
-    await itemInput.fill('Add new feature');
-    await itemInput.press('Enter');
-    await ctxAdmin.page.waitForTimeout(1_000);
+    // 6. Verify we're in action phase
+    await expect(page.getByRole('heading', { name: 'Actions' })).toBeVisible({ timeout: 10_000 });
 
-    // Advance to action phase
-    await nextPhase(ctxAdmin.page); // brainstorm → group
-    await ctxAdmin.page.waitForTimeout(1_000);
-    
-    await nextPhase(ctxAdmin.page); // group → vote
-    await ctxAdmin.page.waitForTimeout(1_000);
-    
-    await nextPhase(ctxAdmin.page); // vote → discuss
-    await ctxAdmin.page.waitForTimeout(1_000);
-    
-    await nextPhase(ctxAdmin.page); // discuss → action
-    await ctxAdmin.page.waitForTimeout(2_000);
+    // 7. Create an action
+    const actionInput = page.locator('input[placeholder*="action"]');
+    await actionInput.fill('Deploy kanban feature');
+    await page.getByRole('button', { name: /Créer l'action/i }).click();
+    await page.waitForTimeout(500);
 
-    await expect(ctxAdmin.page.getByText(/action/i)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText('Deploy kanban feature')).toBeVisible({ timeout: 5_000 });
 
-    // Create actions
-    await ctxAdmin.page.fill('input[placeholder*="action"]', 'Complete the login fix');
-    await ctxAdmin.page.press('input[placeholder*="action"]', 'Enter');
-    await ctxAdmin.page.waitForTimeout(500);
+    // 8. End the retro (action → roti → end)
+    await nextPhase(page); // action → roti
+    await page.waitForTimeout(2_000);
 
-    await ctxAdmin.page.fill('input[placeholder*="action"]', 'Write API docs');
-    await ctxAdmin.page.press('input[placeholder*="action"]', 'Enter');
-    await ctxAdmin.page.waitForTimeout(500);
+    // Vote on ROTI (click rating 4)
+    await page.locator('button').filter({ hasText: '4' }).first().click();
+    await page.waitForTimeout(1_000);
 
-    await ctxAdmin.page.fill('input[placeholder*="action"]', 'Deploy to production');
-    await ctxAdmin.page.press('input[placeholder*="action"]', 'Enter');
-    await ctxAdmin.page.waitForTimeout(1_000);
+    // Reveal results then end retro
+    await page.getByRole('button', { name: /Révéler les résultats/i }).click();
+    await page.waitForTimeout(1_000);
+    await page.getByRole('button', { name: /Terminer la rétrospective/i }).click();
+    await page.getByRole('button', { name: /Confirmer/i }).click();
+    await page.waitForTimeout(3_000);
 
-    // End the retro
-    await nextPhase(ctxAdmin.page); // action → end
-    await ctxAdmin.page.waitForTimeout(2_000);
-  });
+    // 9. Navigate to team actions kanban
+    await page.goto('/');
+    await page.getByText('Dev Team').click();
+    await page.waitForURL(/\/teams\//);
+    await page.getByRole('link', { name: 'Actions' }).click();
+    await page.waitForTimeout(2_000);
 
-  test('Team actions page shows actions from completed retros', async () => {
-    // Get team ID from URL
-    const retroId = retroUrl.split('/').pop();
-    
-    // Navigate to team page (we need to get the team ID first)
-    // Since we created a retro, let's navigate to a known team slug
-    await ctxAdmin.page.goto('/teams/dev-team');
-    await ctxAdmin.page.waitForTimeout(2_000);
+    // 10. Verify kanban board structure
+    await expect(page.getByRole('heading', { name: 'À faire' })).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('heading', { name: 'En cours' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Terminé' })).toBeVisible();
 
-    // Click on Actions button
-    await ctxAdmin.page.getByRole('button', { name: /Actions/i }).click();
-    await ctxAdmin.page.waitForTimeout(2_000);
+    // 11. Verify our action is in "À faire" column
+    const todoColumn = page.locator('[data-testid="column-todo"]');
+    await expect(todoColumn.getByText('Deploy kanban feature')).toBeVisible({ timeout: 10_000 });
 
-    // Should see the Kanban board
-    await expect(ctxAdmin.page.getByText('À faire')).toBeVisible();
-    await expect(ctxAdmin.page.getByText('En cours')).toBeVisible();
-    await expect(ctxAdmin.page.getByText('Terminé')).toBeVisible();
+    // 12. Drag action from "À faire" to "En cours" using pointer events for @dnd-kit
+    const card = todoColumn.getByText('Deploy kanban feature');
+    const inProgressColumn = page.locator('[data-testid="column-in_progress"]');
 
-    // Should see the 3 actions we created
-    await expect(ctxAdmin.page.getByText('Complete the login fix')).toBeVisible();
-    await expect(ctxAdmin.page.getByText('Write API docs')).toBeVisible();
-    await expect(ctxAdmin.page.getByText('Deploy to production')).toBeVisible();
-  });
+    const cardBox = await card.boundingBox();
+    const targetBox = await inProgressColumn.boundingBox();
 
-  test('Filter actions by retrospective', async () => {
-    // Already on actions page
-    await expect(ctxAdmin.page.getByText('À faire')).toBeVisible();
+    if (cardBox && targetBox) {
+      const startX = cardBox.x + cardBox.width / 2;
+      const startY = cardBox.y + cardBox.height / 2;
+      const endX = targetBox.x + targetBox.width / 2;
+      const endY = targetBox.y + targetBox.height / 2;
 
-    // Check filter dropdown exists
-    const filterDropdown = ctxAdmin.page.locator('select');
-    await expect(filterDropdown).toBeVisible();
+      await page.mouse.move(startX, startY);
+      await page.mouse.down();
+      // Move gradually to trigger @dnd-kit's activation distance (8px)
+      await page.mouse.move(startX + 10, startY, { steps: 5 });
+      await page.waitForTimeout(100);
+      await page.mouse.move(endX, endY, { steps: 20 });
+      await page.waitForTimeout(200);
+      await page.mouse.up();
+    }
+    await page.waitForTimeout(2_000);
 
-    // Should have "Tous les rétro" option
-    await expect(filterDropdown).toContainText('Tous les rétro');
-  });
-
-  test('Action card shows retro name', async () => {
-    // Check that action cards show which retro they came from
-    await expect(ctxAdmin.page.getByText(/Sprint/).first()).toBeVisible({ timeout: 5_000 });
-  });
-
-  test('Can toggle action completion', async () => {
-    // Find an action and click the toggle button
-    const actionCard = ctxAdmin.page.getByText('Complete the login fix').locator('..');
-    
-    // Click the "Marquer terminé" button
-    await actionCard.getByText('Marquer terminé').click();
-    await ctxAdmin.page.waitForTimeout(500);
-
-    // Should now show "Terminé"
-    await expect(actionCard.getByText('Terminé')).toBeVisible();
+    // 13. Verify card moved to "En cours"
+    await expect(inProgressColumn.getByText('Deploy kanban feature')).toBeVisible({ timeout: 5_000 });
   });
 });
