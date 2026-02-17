@@ -63,11 +63,13 @@ export function useWebSocket(retroId: string | undefined) {
   const [connectionError, setConnectionError] = useState<string | null>(null)
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
   const stateTimeoutRef = useRef<ReturnType<typeof setTimeout>>()
+  const heartbeatTimeoutRef = useRef<ReturnType<typeof setInterval>>() // Heartbeat interval
   const reconnectAttempts = useRef(0)
   const joinRetryAttempts = useRef(0)
   const maxReconnectAttempts = 5
   const maxJoinRetryAttempts = 3
   const intentionalDisconnectRef = useRef(false)
+  const heartbeatIntervalMs = 30_000 // Send heartbeat every 30 seconds
 
   const connect = useCallback(() => {
     if (!retroId || !accessToken) return
@@ -92,6 +94,17 @@ export function useWebSocket(retroId: string | undefined) {
 
       // Join retro room
       send('join_retro', { retroId })
+
+      // Start heartbeat to keep connection alive (especially important with latency)
+      if (heartbeatTimeoutRef.current) {
+        clearInterval(heartbeatTimeoutRef.current)
+      }
+      heartbeatTimeoutRef.current = setInterval(() => {
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          console.log('[WS] Sending heartbeat to keep connection alive')
+          send('heartbeat', {})
+        }
+      }, heartbeatIntervalMs)
 
       // Set timeout to retry join if retro_state doesn't arrive
       if (stateTimeoutRef.current) {
@@ -383,6 +396,9 @@ export function useWebSocket(retroId: string | undefined) {
     if (stateTimeoutRef.current) {
       clearTimeout(stateTimeoutRef.current)
     }
+    if (heartbeatTimeoutRef.current) {
+      clearInterval(heartbeatTimeoutRef.current)
+    }
     if (wsRef.current) {
       send('leave_retro', {})
       wsRef.current.close()
@@ -412,6 +428,9 @@ export function useWebSocket(retroId: string | undefined) {
       window.removeEventListener('beforeunload', handleBeforeUnload)
       if (stateTimeoutRef.current) {
         clearTimeout(stateTimeoutRef.current)
+      }
+      if (heartbeatTimeoutRef.current) {
+        clearInterval(heartbeatTimeoutRef.current)
       }
       disconnect()
     }

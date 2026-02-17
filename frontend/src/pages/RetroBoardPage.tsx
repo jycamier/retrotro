@@ -14,7 +14,8 @@ import IcebreakerPhaseView from '../components/retrospective/IcebreakerPhaseView
 import RotiPhaseView from '../components/retrospective/RotiPhaseView'
 import RetroSummary from '../components/retrospective/RetroSummary'
 import WaitingRoomView from '../components/retrospective/WaitingRoomView'
-import { LogOut, Users, Wifi, WifiOff, MessageSquare, CheckCircle, Loader2 } from 'lucide-react'
+import { LogOut, Users, Wifi, WifiOff, MessageSquare } from 'lucide-react'
+import LoadingScreen from '../components/LoadingScreen'
 
 export default function RetroBoardPage() {
   const { retroId } = useParams<{ retroId: string }>()
@@ -91,66 +92,14 @@ export default function RetroBoardPage() {
 
   if (!isConnected || !isStateLoaded || !retro || !template) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-100">
-        <div className="text-center">
-          {connectionError ? (
-            <>
-              <div className="text-red-500 mb-4">
-                <WifiOff className="w-12 h-12 mx-auto" />
-              </div>
-              <p className="text-red-600 font-medium">{connectionError}</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-              >
-                Rafraîchir la page
-              </button>
-            </>
-          ) : (
-            <div className="space-y-4">
-              {/* Step 1 — Connexion */}
-              <div className="flex items-center gap-3">
-                {isConnected ? (
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                ) : (
-                  <Loader2 className="w-5 h-5 text-primary-600 animate-spin" />
-                )}
-                <span className={isConnected ? 'text-gray-400' : 'text-gray-700 font-medium'}>
-                  Connexion au serveur…
-                </span>
-              </div>
-
-              {/* Step 2 — Chargement des données */}
-              <div className="flex items-center gap-3">
-                {!isConnected ? (
-                  <div className="w-5 h-5 rounded-full border-2 border-gray-300" />
-                ) : isStateLoaded ? (
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                ) : (
-                  <Loader2 className="w-5 h-5 text-primary-600 animate-spin" />
-                )}
-                <span className={!isConnected ? 'text-gray-300' : isStateLoaded ? 'text-gray-400' : 'text-gray-700 font-medium'}>
-                  Chargement des données…
-                </span>
-              </div>
-
-              {/* Step 3 — Préparation */}
-              <div className="flex items-center gap-3">
-                {!isStateLoaded ? (
-                  <div className="w-5 h-5 rounded-full border-2 border-gray-300" />
-                ) : retro && template ? (
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                ) : (
-                  <Loader2 className="w-5 h-5 text-primary-600 animate-spin" />
-                )}
-                <span className={!isStateLoaded ? 'text-gray-300' : retro && template ? 'text-gray-400' : 'text-gray-700 font-medium'}>
-                  Préparation de la rétrospective…
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      <LoadingScreen
+        isConnected={isConnected}
+        isStateLoaded={isStateLoaded}
+        retro={retro}
+        template={template}
+        connectionError={connectionError}
+        onRetry={() => window.location.reload()}
+      />
     )
   }
 

@@ -161,6 +161,10 @@ func (h *WebSocketHandler) handleMessage(client *ws.Client, data []byte) {
 		h.handleJoinRetro(client, msg.Payload)
 	case "leave_retro":
 		h.handleLeaveRetro(client)
+	case "heartbeat":
+		// No-op: client sending heartbeat to keep connection alive
+		// Useful for detecting stale connections and keeping connection active on high-latency networks
+		slog.Debug("received heartbeat", "userId", client.UserID.String())
 	case "item_create":
 		h.handleItemCreate(client, msg.Payload)
 	case "item_update":
@@ -316,15 +320,15 @@ func (h *WebSocketHandler) handleJoinRetro(client *ws.Client, payload json.RawMe
 	h.hub.SendToClient(client, ws.Message{
 		Type: "retro_state",
 		Payload: map[string]interface{}{
-			"retro":         retro,
-			"items":         items,
-			"actions":       actions,
-			"participants":  participantList,
-			"timerRunning":  h.timerService.IsTimerRunning(retroID),
+			"retro":          retro,
+			"items":          items,
+			"actions":        actions,
+			"participants":   participantList,
+			"timerRunning":   h.timerService.IsTimerRunning(retroID),
 			"timerRemaining": h.timerService.GetRemainingSeconds(retroID),
-			"moods":         moods,
-			"rotiResults":   rotiResults,
-			"teamMembers":   teamMembersWithStatus,
+			"moods":          moods,
+			"rotiResults":    rotiResults,
+			"teamMembers":    teamMembersWithStatus,
 		},
 	})
 
@@ -1135,7 +1139,7 @@ func (h *WebSocketHandler) handleDraftTyping(client *ws.Client, payload json.Raw
 	}
 
 	var data struct {
-		ColumnID    string `json:"columnId"`
+		ColumnID      string `json:"columnId"`
 		ContentLength int    `json:"contentLength"`
 	}
 	if err := json.Unmarshal(payload, &data); err != nil {

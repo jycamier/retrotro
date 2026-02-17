@@ -17,7 +17,8 @@ const (
 	pingPeriod     = (pongWait * 9) / 10
 	maxMessageSize = 8192
 	// Grace period before broadcasting participant_left to handle page reloads
-	disconnectGracePeriod = 2 * time.Second
+	// Increased from 2s to 10s to handle high-latency networks (150ms+) and slow page loads
+	disconnectGracePeriod = 10 * time.Second
 )
 
 // Message represents a WebSocket message
@@ -53,7 +54,7 @@ type Hub struct {
 	unregister         chan *Client
 	broadcast          chan *RoomMessage
 	mu                 sync.RWMutex
-	pendingDisconnects map[string]*PendingDisconnect // key: "roomID-userID"
+	pendingDisconnects map[string]*PendingDisconnect         // key: "roomID-userID"
 	OnUserLeftRoom     func(roomID string, userID uuid.UUID) // Callback when user leaves room
 }
 
