@@ -106,6 +106,9 @@ func NewRouter(
 					r.Get("/users/{userId}/mood", statsHandler.GetUserMoodStats)
 				})
 
+				// Team actions from completed retrospectives
+				r.Get("/actions", retroHandler.ListTeamActions)
+
 				// Webhooks
 				r.Route("/webhooks", func(r chi.Router) {
 					r.Post("/", webhookHandler.Create)

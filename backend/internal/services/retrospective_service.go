@@ -662,6 +662,11 @@ func (s *RetrospectiveService) ListActions(ctx context.Context, retroID uuid.UUI
 	return s.actionRepo.ListByRetro(ctx, retroID)
 }
 
+// ListActionsByTeam lists all action items for a team's completed retrospectives
+func (s *RetrospectiveService) ListActionsByTeam(ctx context.Context, teamID uuid.UUID) ([]*models.ActionItem, error) {
+	return s.actionRepo.ListByTeam(ctx, teamID)
+}
+
 // ListTemplates lists templates (built-in and team-specific)
 func (s *RetrospectiveService) ListTemplates(ctx context.Context, teamID *uuid.UUID) ([]*models.Template, error) {
 	if teamID != nil {

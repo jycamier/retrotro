@@ -51,16 +51,16 @@ const (
 
 // User represents a user in the system
 type User struct {
-	ID           uuid.UUID  `json:"id" db:"id"`
-	Email        string     `json:"email" db:"email"`
-	DisplayName  string     `json:"displayName" db:"display_name"`
-	AvatarURL    *string    `json:"avatarUrl,omitempty" db:"avatar_url"`
-	OIDCSubject  string     `json:"-" db:"oidc_subject"`
-	OIDCIssuer   string     `json:"-" db:"oidc_issuer"`
-	IsAdmin      bool       `json:"isAdmin" db:"is_admin"`
-	LastLoginAt  *time.Time `json:"lastLoginAt,omitempty" db:"last_login_at"`
-	CreatedAt    time.Time  `json:"createdAt" db:"created_at"`
-	UpdatedAt    time.Time  `json:"updatedAt" db:"updated_at"`
+	ID          uuid.UUID  `json:"id" db:"id"`
+	Email       string     `json:"email" db:"email"`
+	DisplayName string     `json:"displayName" db:"display_name"`
+	AvatarURL   *string    `json:"avatarUrl,omitempty" db:"avatar_url"`
+	OIDCSubject string     `json:"-" db:"oidc_subject"`
+	OIDCIssuer  string     `json:"-" db:"oidc_issuer"`
+	IsAdmin     bool       `json:"isAdmin" db:"is_admin"`
+	LastLoginAt *time.Time `json:"lastLoginAt,omitempty" db:"last_login_at"`
+	CreatedAt   time.Time  `json:"createdAt" db:"created_at"`
+	UpdatedAt   time.Time  `json:"updatedAt" db:"updated_at"`
 }
 
 // Team represents a team/group in the system
@@ -93,14 +93,14 @@ type TeamMember struct {
 
 // Template represents a retrospective template
 type Template struct {
-	ID          uuid.UUID         `json:"id" db:"id"`
-	Name        string            `json:"name" db:"name"`
-	Description *string           `json:"description,omitempty" db:"description"`
-	Columns     []TemplateColumn  `json:"columns"`
-	IsBuiltIn   bool              `json:"isBuiltIn" db:"is_built_in"`
-	TeamID      *uuid.UUID        `json:"teamId,omitempty" db:"team_id"`
-	CreatedBy   *uuid.UUID        `json:"createdBy,omitempty" db:"created_by"`
-	CreatedAt   time.Time         `json:"createdAt" db:"created_at"`
+	ID          uuid.UUID          `json:"id" db:"id"`
+	Name        string             `json:"name" db:"name"`
+	Description *string            `json:"description,omitempty" db:"description"`
+	Columns     []TemplateColumn   `json:"columns"`
+	IsBuiltIn   bool               `json:"isBuiltIn" db:"is_built_in"`
+	TeamID      *uuid.UUID         `json:"teamId,omitempty" db:"team_id"`
+	CreatedBy   *uuid.UUID         `json:"createdBy,omitempty" db:"created_by"`
+	CreatedAt   time.Time          `json:"createdAt" db:"created_at"`
 	PhaseTimes  map[RetroPhase]int `json:"phaseTimes,omitempty"`
 }
 
@@ -116,35 +116,35 @@ type TemplateColumn struct {
 
 // Retrospective represents a retrospective session
 type Retrospective struct {
-	ID                     uuid.UUID              `json:"id" db:"id"`
-	Name                   string                 `json:"name" db:"name"`
-	TeamID                 uuid.UUID              `json:"teamId" db:"team_id"`
-	TemplateID             uuid.UUID              `json:"templateId" db:"template_id"`
-	FacilitatorID          uuid.UUID              `json:"facilitatorId" db:"facilitator_id"`
-	Status                 RetroStatus            `json:"status" db:"status"`
-	CurrentPhase           RetroPhase             `json:"currentPhase" db:"current_phase"`
-	MaxVotesPerUser        int                    `json:"maxVotesPerUser" db:"max_votes_per_user"`
-	MaxVotesPerItem        int                    `json:"maxVotesPerItem" db:"max_votes_per_item"`
-	AnonymousVoting        bool                   `json:"anonymousVoting" db:"anonymous_voting"`
-	AnonymousItems         bool                   `json:"anonymousItems" db:"anonymous_items"`
-	AllowItemEdit          bool                   `json:"allowItemEdit" db:"allow_item_edit"`
-	AllowVoteChange        bool                   `json:"allowVoteChange" db:"allow_vote_change"`
-	PhaseTimerOverrides    map[RetroPhase]int     `json:"phaseTimerOverrides,omitempty" db:"phase_timer_overrides"`
-	TimerStartedAt         *time.Time  `json:"timerStartedAt,omitempty" db:"timer_started_at"`
-	TimerDurationSeconds   *int        `json:"timerDurationSeconds,omitempty" db:"timer_duration_seconds"`
-	TimerPausedAt          *time.Time  `json:"timerPausedAt,omitempty" db:"timer_paused_at"`
-	TimerRemainingSeconds  *int        `json:"timerRemainingSeconds,omitempty" db:"timer_remaining_seconds"`
-	ScheduledAt            *time.Time  `json:"scheduledAt,omitempty" db:"scheduled_at"`
-	StartedAt              *time.Time  `json:"startedAt,omitempty" db:"started_at"`
-	EndedAt                *time.Time  `json:"endedAt,omitempty" db:"ended_at"`
-	RotiRevealed           bool        `json:"rotiRevealed" db:"roti_revealed"`
-	CreatedAt              time.Time   `json:"createdAt" db:"created_at"`
-	UpdatedAt              time.Time   `json:"updatedAt" db:"updated_at"`
+	ID                    uuid.UUID          `json:"id" db:"id"`
+	Name                  string             `json:"name" db:"name"`
+	TeamID                uuid.UUID          `json:"teamId" db:"team_id"`
+	TemplateID            uuid.UUID          `json:"templateId" db:"template_id"`
+	FacilitatorID         uuid.UUID          `json:"facilitatorId" db:"facilitator_id"`
+	Status                RetroStatus        `json:"status" db:"status"`
+	CurrentPhase          RetroPhase         `json:"currentPhase" db:"current_phase"`
+	MaxVotesPerUser       int                `json:"maxVotesPerUser" db:"max_votes_per_user"`
+	MaxVotesPerItem       int                `json:"maxVotesPerItem" db:"max_votes_per_item"`
+	AnonymousVoting       bool               `json:"anonymousVoting" db:"anonymous_voting"`
+	AnonymousItems        bool               `json:"anonymousItems" db:"anonymous_items"`
+	AllowItemEdit         bool               `json:"allowItemEdit" db:"allow_item_edit"`
+	AllowVoteChange       bool               `json:"allowVoteChange" db:"allow_vote_change"`
+	PhaseTimerOverrides   map[RetroPhase]int `json:"phaseTimerOverrides,omitempty" db:"phase_timer_overrides"`
+	TimerStartedAt        *time.Time         `json:"timerStartedAt,omitempty" db:"timer_started_at"`
+	TimerDurationSeconds  *int               `json:"timerDurationSeconds,omitempty" db:"timer_duration_seconds"`
+	TimerPausedAt         *time.Time         `json:"timerPausedAt,omitempty" db:"timer_paused_at"`
+	TimerRemainingSeconds *int               `json:"timerRemainingSeconds,omitempty" db:"timer_remaining_seconds"`
+	ScheduledAt           *time.Time         `json:"scheduledAt,omitempty" db:"scheduled_at"`
+	StartedAt             *time.Time         `json:"startedAt,omitempty" db:"started_at"`
+	EndedAt               *time.Time         `json:"endedAt,omitempty" db:"ended_at"`
+	RotiRevealed          bool               `json:"rotiRevealed" db:"roti_revealed"`
+	CreatedAt             time.Time          `json:"createdAt" db:"created_at"`
+	UpdatedAt             time.Time          `json:"updatedAt" db:"updated_at"`
 
 	// Joined fields
-	Team       *Team       `json:"team,omitempty"`
-	Template   *Template   `json:"template,omitempty"`
-	Facilitator *User      `json:"facilitator,omitempty"`
+	Team        *Team     `json:"team,omitempty"`
+	Template    *Template `json:"template,omitempty"`
+	Facilitator *User     `json:"facilitator,omitempty"`
 }
 
 // RetroParticipant represents a participant in a retrospective
@@ -205,21 +205,22 @@ type ActionItem struct {
 	UpdatedAt   time.Time  `json:"updatedAt" db:"updated_at"`
 
 	// Joined fields
-	Assignee *User `json:"assignee,omitempty"`
-	Item     *Item `json:"item,omitempty"`
+	Assignee  *User  `json:"assignee,omitempty"`
+	Item      *Item  `json:"item,omitempty"`
+	RetroName string `json:"retroName,omitempty" db:"retro_name"`
 }
 
 // Integration represents an external integration
 type Integration struct {
-	ID           uuid.UUID `json:"id" db:"id"`
-	TeamID       uuid.UUID `json:"teamId" db:"team_id"`
-	Type         string    `json:"type" db:"type"` // jira, slack, webhook
-	Name         string    `json:"name" db:"name"`
-	Config       string    `json:"-" db:"config"` // JSON encrypted
-	IsEnabled    bool      `json:"isEnabled" db:"is_enabled"`
-	CreatedBy    uuid.UUID `json:"createdBy" db:"created_by"`
-	CreatedAt    time.Time `json:"createdAt" db:"created_at"`
-	UpdatedAt    time.Time `json:"updatedAt" db:"updated_at"`
+	ID        uuid.UUID `json:"id" db:"id"`
+	TeamID    uuid.UUID `json:"teamId" db:"team_id"`
+	Type      string    `json:"type" db:"type"` // jira, slack, webhook
+	Name      string    `json:"name" db:"name"`
+	Config    string    `json:"-" db:"config"` // JSON encrypted
+	IsEnabled bool      `json:"isEnabled" db:"is_enabled"`
+	CreatedBy uuid.UUID `json:"createdBy" db:"created_by"`
+	CreatedAt time.Time `json:"createdAt" db:"created_at"`
+	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
 }
 
 // RecurringRetro represents a scheduled recurring retrospective
@@ -240,23 +241,23 @@ type RecurringRetro struct {
 
 // TeamHealthSnapshot represents a health check snapshot
 type TeamHealthSnapshot struct {
-	ID          uuid.UUID  `json:"id" db:"id"`
-	TeamID      uuid.UUID  `json:"teamId" db:"team_id"`
-	RetroID     *uuid.UUID `json:"retroId,omitempty" db:"retro_id"`
-	Period      string     `json:"period" db:"period"`
-	Metrics     string     `json:"metrics" db:"metrics"` // JSON
-	CreatedAt   time.Time  `json:"createdAt" db:"created_at"`
+	ID        uuid.UUID  `json:"id" db:"id"`
+	TeamID    uuid.UUID  `json:"teamId" db:"team_id"`
+	RetroID   *uuid.UUID `json:"retroId,omitempty" db:"retro_id"`
+	Period    string     `json:"period" db:"period"`
+	Metrics   string     `json:"metrics" db:"metrics"` // JSON
+	CreatedAt time.Time  `json:"createdAt" db:"created_at"`
 }
 
 // RetroPhaseHistory represents phase timing history for analytics
 type RetroPhaseHistory struct {
-	ID                    uuid.UUID  `json:"id" db:"id"`
-	RetroID               uuid.UUID  `json:"retroId" db:"retro_id"`
-	Phase                 RetroPhase `json:"phase" db:"phase"`
-	StartedAt             time.Time  `json:"startedAt" db:"started_at"`
-	EndedAt               *time.Time `json:"endedAt,omitempty" db:"ended_at"`
-	ActualDurationSeconds *int       `json:"actualDurationSeconds,omitempty" db:"actual_duration_seconds"`
-	PlannedDurationSeconds int       `json:"plannedDurationSeconds" db:"planned_duration_seconds"`
+	ID                     uuid.UUID  `json:"id" db:"id"`
+	RetroID                uuid.UUID  `json:"retroId" db:"retro_id"`
+	Phase                  RetroPhase `json:"phase" db:"phase"`
+	StartedAt              time.Time  `json:"startedAt" db:"started_at"`
+	EndedAt                *time.Time `json:"endedAt,omitempty" db:"ended_at"`
+	ActualDurationSeconds  *int       `json:"actualDurationSeconds,omitempty" db:"actual_duration_seconds"`
+	PlannedDurationSeconds int        `json:"plannedDurationSeconds" db:"planned_duration_seconds"`
 }
 
 // IcebreakerMood represents a participant's mood in the icebreaker phase
@@ -281,11 +282,11 @@ type RotiVote struct {
 
 // RotiResults represents aggregated ROTI results
 type RotiResults struct {
-	Average      float64        `json:"average"`
-	TotalVotes   int            `json:"totalVotes"`
-	Distribution map[int]int    `json:"distribution"` // rating -> count
-	Revealed     bool           `json:"revealed"`
-	Votes        []*RotiVote    `json:"votes,omitempty"`
+	Average      float64     `json:"average"`
+	TotalVotes   int         `json:"totalVotes"`
+	Distribution map[int]int `json:"distribution"` // rating -> count
+	Revealed     bool        `json:"revealed"`
+	Votes        []*RotiVote `json:"votes,omitempty"`
 }
 
 // StatsFilter represents filter options for statistics queries
@@ -306,11 +307,11 @@ type RotiEvolutionPoint struct {
 
 // MoodEvolutionPoint represents a mood data point in time
 type MoodEvolutionPoint struct {
-	RetroID      uuid.UUID          `json:"retroId"`
-	RetroName    string             `json:"retroName"`
-	Date         time.Time          `json:"date"`
+	RetroID      uuid.UUID           `json:"retroId"`
+	RetroName    string              `json:"retroName"`
+	Date         time.Time           `json:"date"`
 	Distribution map[MoodWeather]int `json:"distribution"`
-	MoodCount    int                `json:"moodCount"`
+	MoodCount    int                 `json:"moodCount"`
 }
 
 // TeamRotiStats represents aggregated ROTI statistics for a team
@@ -325,11 +326,11 @@ type TeamRotiStats struct {
 
 // TeamMoodStats represents aggregated mood statistics for a team
 type TeamMoodStats struct {
-	Distribution      map[MoodWeather]int    `json:"distribution"` // mood -> count
-	TotalMoods        int                    `json:"totalMoods"`
-	TotalRetros       int                    `json:"totalRetros"`
-	ParticipationRate float64                `json:"participationRate"`
-	Evolution         []*MoodEvolutionPoint  `json:"evolution"`
+	Distribution      map[MoodWeather]int   `json:"distribution"` // mood -> count
+	TotalMoods        int                   `json:"totalMoods"`
+	TotalRetros       int                   `json:"totalRetros"`
+	ParticipationRate float64               `json:"participationRate"`
+	Evolution         []*MoodEvolutionPoint `json:"evolution"`
 }
 
 // UserRotiStats represents ROTI statistics for a specific user
@@ -346,13 +347,13 @@ type UserRotiStats struct {
 
 // UserMoodStats represents mood statistics for a specific user
 type UserMoodStats struct {
-	UserID            uuid.UUID              `json:"userId"`
-	Distribution      map[MoodWeather]int    `json:"distribution"` // mood -> count
-	MostCommonMood    MoodWeather            `json:"mostCommonMood"`
-	TotalMoods        int                    `json:"totalMoods"`
-	RetrosAttended    int                    `json:"retrosAttended"`
-	ParticipationRate float64                `json:"participationRate"`
-	Evolution         []*MoodEvolutionPoint  `json:"evolution"`
+	UserID            uuid.UUID             `json:"userId"`
+	Distribution      map[MoodWeather]int   `json:"distribution"` // mood -> count
+	MostCommonMood    MoodWeather           `json:"mostCommonMood"`
+	TotalMoods        int                   `json:"totalMoods"`
+	RetrosAttended    int                   `json:"retrosAttended"`
+	ParticipationRate float64               `json:"participationRate"`
+	Evolution         []*MoodEvolutionPoint `json:"evolution"`
 }
 
 // CombinedUserStats represents combined ROTI and mood stats for a user

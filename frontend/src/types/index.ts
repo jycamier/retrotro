@@ -115,6 +115,7 @@ export interface ActionItem {
   createdAt: string
   updatedAt: string
   assignee?: User
+  retroName?: string
 }
 
 export interface Participant {

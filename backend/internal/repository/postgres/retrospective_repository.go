@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"time"
@@ -675,4 +676,46 @@ func (r *ActionItemRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	query := `DELETE FROM action_items WHERE id = $1`
 	_, err := r.pool.Exec(ctx, query, id)
 	return err
+}
+
+// ListByTeam lists all action items for a team's completed retrospectives
+func (r *ActionItemRepository) ListByTeam(ctx context.Context, teamID uuid.UUID) ([]*models.ActionItem, error) {
+	query := `
+		SELECT ai.id, ai.retro_id, ai.item_id, ai.title, ai.description, ai.assignee_id, ai.due_date,
+		       ai.is_completed, ai.completed_at, ai.priority, ai.external_id, ai.external_url,
+		       ai.created_by, ai.created_at, ai.updated_at,
+		       r.name as retro_name
+		FROM action_items ai
+		JOIN retrospectives r ON r.id = ai.retro_id
+		WHERE r.team_id = $1 AND r.status = 'completed'
+		ORDER BY ai.priority DESC, ai.created_at
+	`
+
+	rows, err := r.pool.Query(ctx, query, teamID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var actions []*models.ActionItem
+	for rows.Next() {
+		var action models.ActionItem
+		var retroName sql.NullString
+		err := rows.Scan(
+			&action.ID, &action.RetroID, &action.ItemID, &action.Title, &action.Description,
+			&action.AssigneeID, &action.DueDate, &action.IsCompleted, &action.CompletedAt,
+			&action.Priority, &action.ExternalID, &action.ExternalURL, &action.CreatedBy,
+			&action.CreatedAt, &action.UpdatedAt,
+			&retroName,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if retroName.Valid {
+			action.RetroName = retroName.String
+		}
+		actions = append(actions, &action)
+	}
+
+	return actions, nil
 }

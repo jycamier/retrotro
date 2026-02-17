@@ -120,6 +120,7 @@ export const teamsApi = {
     api.delete(`/teams/${teamId}/members/${userId}`),
   updateMemberRole: (teamId: string, userId: string, role: string) =>
     api.put(`/teams/${teamId}/members/${userId}/role`, { role }),
+  getActions: (teamId: string) => api.get<ActionItem[]>(`/teams/${teamId}/actions`),
 }
 
 export const templatesApi = {

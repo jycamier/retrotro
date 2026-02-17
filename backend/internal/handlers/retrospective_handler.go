@@ -155,14 +155,14 @@ func (h *RetrospectiveHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Name                *string                    `json:"name"`
-		MaxVotesPerUser     *int                       `json:"maxVotesPerUser"`
-		MaxVotesPerItem     *int                       `json:"maxVotesPerItem"`
-		AnonymousVoting     *bool                      `json:"anonymousVoting"`
-		AnonymousItems      *bool                      `json:"anonymousItems"`
-		AllowItemEdit       *bool                      `json:"allowItemEdit"`
-		AllowVoteChange     *bool                      `json:"allowVoteChange"`
-		PhaseTimerOverrides map[models.RetroPhase]int  `json:"phaseTimerOverrides"`
+		Name                *string                   `json:"name"`
+		MaxVotesPerUser     *int                      `json:"maxVotesPerUser"`
+		MaxVotesPerItem     *int                      `json:"maxVotesPerItem"`
+		AnonymousVoting     *bool                     `json:"anonymousVoting"`
+		AnonymousItems      *bool                     `json:"anonymousItems"`
+		AllowItemEdit       *bool                     `json:"allowItemEdit"`
+		AllowVoteChange     *bool                     `json:"allowVoteChange"`
+		PhaseTimerOverrides map[models.RetroPhase]int `json:"phaseTimerOverrides"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, `{"error": "invalid request body"}`, http.StatusBadRequest)
@@ -467,6 +467,26 @@ func (h *RetrospectiveHandler) ListActions(w http.ResponseWriter, r *http.Reques
 	}
 
 	actions, err := h.retroService.ListActions(ctx, retroID)
+	if err != nil {
+		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(actions)
+}
+
+// ListTeamActions lists all action items for a team's completed retrospectives
+func (h *RetrospectiveHandler) ListTeamActions(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	teamID, err := uuid.Parse(chi.URLParam(r, "teamId"))
+	if err != nil {
+		http.Error(w, `{"error": "invalid team ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	actions, err := h.retroService.ListActionsByTeam(ctx, teamID)
 	if err != nil {
 		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
 		return

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { teamsApi, retrosApi, templatesApi } from '../api/client'
-import { Plus, Play, Calendar, CheckCircle, Clock, Users, Star, BarChart3 } from 'lucide-react'
+import { Plus, Play, Calendar, CheckCircle, Clock, Users, Star, BarChart3, LayoutGrid } from 'lucide-react'
 import type { Retrospective, Template, RotiResults } from '../types'
 
 export default function TeamPage() {
@@ -130,6 +130,13 @@ export default function TeamPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <Link
+              to={`/teams/${teamId}/actions`}
+              className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <LayoutGrid className="w-4 h-4" />
+              Actions
+            </Link>
             <Link
               to={`/teams/${teamId}/stats`}
               className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
