@@ -441,6 +441,7 @@ func (h *WebSocketHandler) handleLeaveRetro(client *ws.Client) {
 // handleItemCreate handles creating an item
 func (h *WebSocketHandler) handleItemCreate(client *ws.Client, payload json.RawMessage) {
 	if client.RoomID == "" {
+		slog.Debug("handleItemCreate: client not in a room")
 		return
 	}
 
@@ -449,21 +450,36 @@ func (h *WebSocketHandler) handleItemCreate(client *ws.Client, payload json.RawM
 		Content  string `json:"content"`
 	}
 	if err := json.Unmarshal(payload, &data); err != nil {
+		slog.Error("handleItemCreate: failed to unmarshal payload", "error", err)
 		return
 	}
 
 	retroID, err := uuid.Parse(client.RoomID)
 	if err != nil {
+		slog.Error("handleItemCreate: invalid retroID", "retroID", client.RoomID, "error", err)
 		return
 	}
+
+	slog.Info("handleItemCreate: creating item",
+		"retroID", retroID.String(),
+		"userID", client.UserID.String(),
+		"columnID", data.ColumnID,
+		"contentLength", len(data.Content),
+	)
 
 	item, err := h.retroService.CreateItem(context.Background(), retroID, client.UserID, services.CreateItemInput{
 		ColumnID: data.ColumnID,
 		Content:  data.Content,
 	})
 	if err != nil {
+		slog.Error("handleItemCreate: failed to create item", "error", err)
 		return
 	}
+
+	slog.Info("handleItemCreate: broadcasting item_created",
+		"itemID", item.ID,
+		"roomID", client.RoomID,
+	)
 
 	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
 		Type:    "item_created",

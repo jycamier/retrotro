@@ -221,6 +221,7 @@ export function useWebSocket(retroId: string | undefined) {
       }
 
       case 'item_created':
+        console.log('[WS] item_created received:', payload)
         retroStore.addItem(payload as Item)
         break
 
@@ -384,7 +385,10 @@ export function useWebSocket(retroId: string | undefined) {
       if (type === 'leave_retro') {
         intentionalDisconnectRef.current = true
       }
+      console.log('[WS] Sending message:', type, payload)
       wsRef.current.send(JSON.stringify({ type, payload }))
+    } else {
+      console.warn('[WS] Cannot send message, WebSocket not ready:', type, wsRef.current?.readyState)
     }
   }, [])
 

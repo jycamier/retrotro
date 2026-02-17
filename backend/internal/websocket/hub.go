@@ -252,13 +252,26 @@ func (h *Hub) Run() {
 		case roomMsg := <-h.broadcast:
 			h.mu.RLock()
 			if clients, ok := h.rooms[roomMsg.RoomID]; ok {
+				clientCount := len(clients)
+				slog.Debug("hub: broadcasting to room",
+					"roomID", roomMsg.RoomID,
+					"clientCount", clientCount,
+				)
 				for client := range clients {
 					if roomMsg.Exclude != nil && client == roomMsg.Exclude {
 						continue
 					}
 					select {
 					case client.Send <- roomMsg.Message:
+						slog.Debug("hub: message sent to client",
+							"roomID", roomMsg.RoomID,
+							"clientID", client.ID,
+						)
 					default:
+						slog.Warn("hub: client send channel full, removing client",
+							"roomID", roomMsg.RoomID,
+							"clientID", client.ID,
+						)
 						h.mu.RUnlock()
 						h.mu.Lock()
 						delete(h.clients, client)
@@ -268,6 +281,10 @@ func (h *Hub) Run() {
 						h.mu.RLock()
 					}
 				}
+			} else {
+				slog.Warn("hub: room not found for broadcast",
+					"roomID", roomMsg.RoomID,
+				)
 			}
 			h.mu.RUnlock()
 		}
