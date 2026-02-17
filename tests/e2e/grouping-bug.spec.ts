@@ -2,6 +2,25 @@ import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 import { DEV_USERS, createAuthenticatedContext } from './helpers/auth';
 import { createTeamAndRetro, joinRetro, waitForParticipantCount, nextPhase } from './helpers/retro';
 
+/**
+ * Test for grouping bug: https://github.com/jycamier/retrotro/issues/XXX
+ * 
+ * BUG DESCRIPTION:
+ * When dragging an item that already has child items grouped under it to a new parent,
+ * the child items become orphaned with stale groupId references.
+ * 
+ * SCENARIO:
+ * 1. Create 4 items: Item1, Item2, Item3, Item4
+ * 2. Group Item1 under Item2 → Item1.groupId = Item2.id
+ * 3. Re-group Item2 (with Item1) under Item3
+ *    - BUG: Item1 is lost because Item1.groupId still points to Item2
+ *    - FIX: Item1 should move with Item2 to be grouped under Item3
+ * 
+ * EXPECTED BEHAVIOR AFTER FIX:
+ * - Item3 has both Item1 and Item2 grouped under it
+ * - Item1 and Item2 both correctly point to Item3 as their groupId
+ */
+
 let ctxAdmin: { context: BrowserContext; page: Page };
 let ctxUser1: { context: BrowserContext; page: Page };
 let retroUrl: string;
