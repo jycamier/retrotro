@@ -13,25 +13,25 @@ import (
 )
 
 var (
-	ErrRetroNotFound       = errors.New("retrospective not found")
-	ErrItemNotFound        = errors.New("item not found")
-	ErrActionNotFound      = errors.New("action item not found")
-	ErrTemplateNotFound    = errors.New("template not found")
-	ErrVoteLimitReached    = errors.New("vote limit reached")
+	ErrRetroNotFound        = errors.New("retrospective not found")
+	ErrItemNotFound         = errors.New("item not found")
+	ErrActionNotFound       = errors.New("action item not found")
+	ErrTemplateNotFound     = errors.New("template not found")
+	ErrVoteLimitReached     = errors.New("vote limit reached")
 	ErrItemVoteLimitReached = errors.New("item vote limit reached")
-	ErrInvalidPhase        = errors.New("invalid phase for this operation")
+	ErrInvalidPhase         = errors.New("invalid phase for this operation")
 )
 
 // RetrospectiveService handles retrospective operations
 type RetrospectiveService struct {
-	retroRepo       *postgres.RetrospectiveRepository
-	templateRepo    *postgres.TemplateRepository
-	itemRepo        *postgres.ItemRepository
-	voteRepo        *postgres.VoteRepository
-	actionRepo      *postgres.ActionItemRepository
-	icebreakerRepo  *postgres.IcebreakerRepository
-	rotiRepo        *postgres.RotiRepository
-	webhookService  *WebhookService
+	retroRepo      *postgres.RetrospectiveRepository
+	templateRepo   *postgres.TemplateRepository
+	itemRepo       *postgres.ItemRepository
+	voteRepo       *postgres.VoteRepository
+	actionRepo     *postgres.ActionItemRepository
+	icebreakerRepo *postgres.IcebreakerRepository
+	rotiRepo       *postgres.RotiRepository
+	webhookService *WebhookService
 }
 
 // NewRetrospectiveService creates a new retrospective service
@@ -46,14 +46,14 @@ func NewRetrospectiveService(
 	webhookService *WebhookService,
 ) *RetrospectiveService {
 	return &RetrospectiveService{
-		retroRepo:       retroRepo,
-		templateRepo:    templateRepo,
-		itemRepo:        itemRepo,
-		voteRepo:        voteRepo,
-		actionRepo:      actionRepo,
-		icebreakerRepo:  icebreakerRepo,
-		rotiRepo:        rotiRepo,
-		webhookService:  webhookService,
+		retroRepo:      retroRepo,
+		templateRepo:   templateRepo,
+		itemRepo:       itemRepo,
+		voteRepo:       voteRepo,
+		actionRepo:     actionRepo,
+		icebreakerRepo: icebreakerRepo,
+		rotiRepo:       rotiRepo,
+		webhookService: webhookService,
 	}
 }
 
@@ -108,7 +108,7 @@ func (s *RetrospectiveService) Create(ctx context.Context, facilitatorID uuid.UU
 		ID:                  uuid.New(),
 		Name:                input.Name,
 		TeamID:              input.TeamID,
-		TemplateID:         input.TemplateID,
+		TemplateID:          input.TemplateID,
 		FacilitatorID:       facilitatorID,
 		Status:              models.StatusDraft,
 		CurrentPhase:        models.PhaseBrainstorm,
@@ -433,6 +433,28 @@ func (s *RetrospectiveService) GroupItems(ctx context.Context, parentID uuid.UUI
 			log.Printf("GroupItems: FindByID failed for %s: %v", childID, err)
 			continue
 		}
+
+		// BUG FIX: When re-grouping an item that already has grouped children,
+		// we need to move those children to the new parent as well
+		// Find all items that were grouped under this child
+		allItems, err := s.itemRepo.ListByRetro(ctx, item.RetroID)
+		if err != nil {
+			log.Printf("GroupItems: Failed to list items for retro %s: %v", item.RetroID, err)
+		} else {
+			// Move all items that were previously grouped under childID to the new parentID
+			for _, existingItem := range allItems {
+				if existingItem.GroupID != nil && *existingItem.GroupID == childID {
+					log.Printf("GroupItems: Moving item %s from group %s to group %s", existingItem.ID, childID, parentID)
+					existingItem.GroupID = &parentID
+					if err := s.itemRepo.Update(ctx, existingItem); err != nil {
+						log.Printf("GroupItems: Failed to move item %s to new group: %v", existingItem.ID, err)
+					} else {
+						log.Printf("GroupItems: Successfully moved item %s to new group", existingItem.ID)
+					}
+				}
+			}
+		}
+
 		log.Printf("GroupItems: Found item %s, setting GroupID to %s", childID, parentID)
 		item.GroupID = &parentID
 		if err := s.itemRepo.Update(ctx, item); err != nil {
