@@ -206,9 +206,10 @@ type ActionItem struct {
 	UpdatedAt   time.Time  `json:"updatedAt" db:"updated_at"`
 
 	// Joined fields
-	Assignee  *User  `json:"assignee,omitempty"`
-	Item      *Item  `json:"item,omitempty"`
-	RetroName string `json:"retroName,omitempty" db:"retro_name"`
+	Assignee    *User  `json:"assignee,omitempty"`
+	Item        *Item  `json:"item,omitempty"`
+	ItemContent string `json:"itemContent,omitempty" db:"item_content"`
+	RetroName   string `json:"retroName,omitempty" db:"retro_name"`
 }
 
 // Integration represents an external integration

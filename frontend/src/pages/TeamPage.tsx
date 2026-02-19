@@ -12,6 +12,12 @@ export default function TeamPage() {
   const [newRetroName, setNewRetroName] = useState('')
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
 
+  const openCreateModal = () => {
+    const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+    setNewRetroName(`Rétro du ${today}`)
+    setShowCreateModal(true)
+  }
+
   const { data: team, isLoading: teamLoading } = useQuery({
     queryKey: ['team', teamId],
     queryFn: () => teamsApi.get(teamId!),
@@ -145,7 +151,7 @@ export default function TeamPage() {
               Statistiques
             </Link>
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={openCreateModal}
               className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
             >
               <Plus className="w-4 h-4" />
@@ -212,7 +218,7 @@ export default function TeamPage() {
               Create your first retrospective to get started
             </p>
             <button
-              onClick={() => setShowCreateModal(true)}
+              onClick={openCreateModal}
               className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
             >
               Create retrospective

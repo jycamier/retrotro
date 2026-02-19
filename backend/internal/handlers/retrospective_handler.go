@@ -492,6 +492,10 @@ func (h *RetrospectiveHandler) ListTeamActions(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	if actions == nil {
+		actions = []*models.ActionItem{}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(actions)
 }

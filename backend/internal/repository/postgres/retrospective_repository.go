@@ -684,9 +684,11 @@ func (r *ActionItemRepository) ListByTeam(ctx context.Context, teamID uuid.UUID)
 		SELECT ai.id, ai.retro_id, ai.item_id, ai.title, ai.description, ai.assignee_id, ai.due_date,
 		       ai.is_completed, ai.status, ai.completed_at, ai.priority, ai.external_id, ai.external_url,
 		       ai.created_by, ai.created_at, ai.updated_at,
-		       r.name as retro_name
+		       r.name as retro_name,
+		       i.content as item_content
 		FROM action_items ai
 		JOIN retrospectives r ON r.id = ai.retro_id
+		LEFT JOIN items i ON i.id = ai.item_id
 		WHERE r.team_id = $1 AND r.status = 'completed'
 		ORDER BY ai.priority DESC, ai.created_at
 	`
@@ -701,18 +703,23 @@ func (r *ActionItemRepository) ListByTeam(ctx context.Context, teamID uuid.UUID)
 	for rows.Next() {
 		var action models.ActionItem
 		var retroName sql.NullString
+		var itemContent sql.NullString
 		err := rows.Scan(
 			&action.ID, &action.RetroID, &action.ItemID, &action.Title, &action.Description,
 			&action.AssigneeID, &action.DueDate, &action.IsCompleted, &action.Status, &action.CompletedAt,
 			&action.Priority, &action.ExternalID, &action.ExternalURL, &action.CreatedBy,
 			&action.CreatedAt, &action.UpdatedAt,
 			&retroName,
+			&itemContent,
 		)
 		if err != nil {
 			return nil, err
 		}
 		if retroName.Valid {
 			action.RetroName = retroName.String
+		}
+		if itemContent.Valid {
+			action.ItemContent = itemContent.String
 		}
 		actions = append(actions, &action)
 	}

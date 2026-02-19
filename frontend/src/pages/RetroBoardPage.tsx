@@ -9,29 +9,24 @@ import RetroBoard from '../components/retrospective/RetroBoard'
 import PhaseTimer from '../components/retrospective/PhaseTimer'
 import ParticipantList from '../components/retrospective/ParticipantList'
 import DiscussionCarousel from '../components/retrospective/DiscussionCarousel'
-import ActionPhaseView from '../components/retrospective/ActionPhaseView'
 import IcebreakerPhaseView from '../components/retrospective/IcebreakerPhaseView'
 import RotiPhaseView from '../components/retrospective/RotiPhaseView'
 import RetroSummary from '../components/retrospective/RetroSummary'
 import WaitingRoomView from '../components/retrospective/WaitingRoomView'
-import { LogOut, Users, Wifi, WifiOff, MessageSquare } from 'lucide-react'
-import LoadingScreen from '../components/LoadingScreen'
+import { Loader2, LogOut, Users, Wifi, WifiOff } from 'lucide-react'
 
 export default function RetroBoardPage() {
   const { retroId } = useParams<{ retroId: string }>()
   const navigate = useNavigate()
   const { user } = useAuthStore()
   const { retro, participants, items, actions, currentPhase, moods, rotiVotedUserIds, rotiResults, teamMembers, reset } = useRetroStore()
-  const { isConnected, isStateLoaded, connectionError, send, disconnect } = useWebSocket(retroId)
-  const [isDiscussionOpen, setIsDiscussionOpen] = useState(false)
+  const { isConnected, isStateLoaded, send, disconnect } = useWebSocket(retroId)
   const [showSummary, setShowSummary] = useState(false)
 
   // Reset store when retroId changes (entering a new retro)
   useEffect(() => {
-    // Reset state when entering a new retro
     reset()
     setShowSummary(false)
-    setIsDiscussionOpen(false)
   }, [retroId, reset])
 
   // Show summary when retro ends (only if it's the current retro)
@@ -62,11 +57,9 @@ export default function RetroBoardPage() {
     if (participant) {
       return participant.name
     }
-    // If no participants but we have items, we're likely in a loading state (page reload)
     if (participants.length === 0 && items.length > 0) {
       return '...'
     }
-    // Check if the author is the current user
     if (authorId === user?.id && user?.displayName) {
       return user.displayName
     }
@@ -86,27 +79,21 @@ export default function RetroBoardPage() {
     group: 'Group',
     vote: 'Vote',
     discuss: 'Discuss',
-    action: 'Actions',
     roti: 'ROTI',
   }
 
-  if (!isConnected || !isStateLoaded || !retro || !template) {
+  if (!retro || !template || !isStateLoaded) {
     return (
-      <LoadingScreen
-        isConnected={isConnected}
-        isStateLoaded={isStateLoaded}
-        retro={retro}
-        template={template}
-        connectionError={connectionError}
-        onRetry={() => window.location.reload()}
-      />
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+      </div>
     )
   }
 
   // Check special phases for dedicated views
   const isWaitingPhase = currentPhase === 'waiting'
   const isIcebreakerPhase = currentPhase === 'icebreaker'
-  const isActionPhase = currentPhase === 'action'
+  const isDiscussPhase = currentPhase === 'discuss'
   const isRotiPhase = currentPhase === 'roti'
 
   return (
@@ -119,22 +106,13 @@ export default function RetroBoardPage() {
             <span className="px-2 py-1 text-sm bg-primary-100 text-primary-700 rounded">
               {phaseLabels[currentPhase]}
             </span>
-            {(currentPhase === 'discuss' || currentPhase === 'vote') && (
-              <button
-                onClick={() => setIsDiscussionOpen(true)}
-                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-primary-600 text-white rounded-lg hover:bg-primary-700"
-              >
-                <MessageSquare className="w-4 h-4" />
-                Ouvrir la discussion
-              </button>
-            )}
             {isConnected ? (
               <span className="flex items-center gap-1 text-green-600 text-sm">
                 <Wifi className="w-4 h-4" />
                 Connected
               </span>
             ) : (
-              <span className="flex items-center gap-1 text-red-600 text-sm">
+              <span className="flex items-center gap-1 text-red-600 text-sm animate-pulse">
                 <WifiOff className="w-4 h-4" />
                 Disconnected
               </span>
@@ -163,7 +141,6 @@ export default function RetroBoardPage() {
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
         {isWaitingPhase ? (
-          /* Waiting Room Phase - Full width waiting room view */
           <div className="flex-1 overflow-auto p-4">
             <WaitingRoomView
               teamMembers={teamMembers}
@@ -174,7 +151,6 @@ export default function RetroBoardPage() {
             />
           </div>
         ) : isIcebreakerPhase ? (
-          /* Icebreaker Phase - Full width mood selection view */
           <div className="flex-1 overflow-auto p-4">
             <IcebreakerPhaseView
               moods={moods}
@@ -184,8 +160,19 @@ export default function RetroBoardPage() {
               send={send}
             />
           </div>
+        ) : isDiscussPhase ? (
+          <div className="flex-1">
+            <DiscussionCarousel
+              items={items}
+              template={template}
+              getAuthorName={getAuthorName}
+              actions={actions}
+              participants={participants}
+              send={send}
+              isFacilitator={isFacilitator}
+            />
+          </div>
         ) : isRotiPhase ? (
-          /* ROTI Phase - Full width rating view */
           <div className="flex-1 overflow-auto p-4">
             <RotiPhaseView
               rotiVotedUserIds={rotiVotedUserIds}
@@ -196,20 +183,7 @@ export default function RetroBoardPage() {
               send={send}
             />
           </div>
-        ) : isActionPhase ? (
-          /* Action Phase - Dedicated 2-column view */
-          <div className="flex-1 overflow-auto p-4">
-            <ActionPhaseView
-              items={items}
-              actions={actions}
-              participants={participants}
-              template={template}
-              isFacilitator={isFacilitator}
-              send={send}
-            />
-          </div>
         ) : (
-          /* Other phases - Normal board view */
           <>
             <div className="flex-1 overflow-auto p-4">
               <RetroBoard
@@ -220,7 +194,6 @@ export default function RetroBoardPage() {
               />
             </div>
 
-            {/* Sidebar - compact view */}
             <div className="w-44 bg-white border-l border-gray-200 p-3 flex flex-col">
               <ParticipantList
                 participants={participants}
@@ -242,17 +215,6 @@ export default function RetroBoardPage() {
           </>
         )}
       </div>
-
-      {/* Discussion Carousel Modal */}
-      {template && (
-        <DiscussionCarousel
-          items={items}
-          template={template}
-          isOpen={isDiscussionOpen}
-          onClose={() => setIsDiscussionOpen(false)}
-          getAuthorName={getAuthorName}
-        />
-      )}
 
       {/* Retro Summary Modal - shown when retro is completed */}
       {showSummary && template && retro && (

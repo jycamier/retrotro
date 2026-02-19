@@ -25,6 +25,8 @@ import {
   Filter,
   UserCircle,
   ChevronDown,
+  MessageSquare,
+  StickyNote,
 } from 'lucide-react'
 import type { ActionItem, TeamMember } from '../types'
 
@@ -92,7 +94,7 @@ function DraggableActionCard({
 }: {
   action: ActionItem
   members: TeamMember[]
-  patchMutation: ReturnType<typeof useMutation<ActionItem, Error, { actionId: string; data: { status?: string; assigneeId?: string | null } }, { previous: ActionItem[] | undefined }>>
+  patchMutation: ReturnType<typeof useMutation<ActionItem, Error, { actionId: string; data: { status?: string; assigneeId?: string | null; description?: string } }, { previous: ActionItem[] | undefined }>>
 }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: action.id,
@@ -120,10 +122,12 @@ function ActionCard({
 }: {
   action: ActionItem
   members: TeamMember[]
-  patchMutation: ReturnType<typeof useMutation<ActionItem, Error, { actionId: string; data: { status?: string; assigneeId?: string | null } }, { previous: ActionItem[] | undefined }>>
+  patchMutation: ReturnType<typeof useMutation<ActionItem, Error, { actionId: string; data: { status?: string; assigneeId?: string | null; description?: string } }, { previous: ActionItem[] | undefined }>>
   isOverlay?: boolean
 }) {
   const [showDropdown, setShowDropdown] = useState(false)
+  const [showNotes, setShowNotes] = useState(false)
+  const [notesDraft, setNotesDraft] = useState(action.description || '')
   const dropdownRef = useRef<HTMLDivElement>(null)
   const overdue = isOverdue(action.dueDate) && action.status !== 'done'
 
@@ -138,6 +142,13 @@ function ActionCard({
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showDropdown])
+
+  // Sync draft when action.description changes externally
+  useEffect(() => {
+    if (!showNotes) {
+      setNotesDraft(action.description || '')
+    }
+  }, [action.description, showNotes])
 
   const assignee = members.find(m => m.userId === action.assigneeId)
   const assigneeLabel = assignee
@@ -156,11 +167,26 @@ function ActionCard({
     patchMutation.mutate({ actionId: action.id, data: { assigneeId: userId } })
   }
 
+  const handleSaveNotes = () => {
+    const trimmed = notesDraft.trim()
+    if (trimmed !== (action.description || '')) {
+      patchMutation.mutate({ actionId: action.id, data: { description: trimmed || '' } })
+    }
+    setShowNotes(false)
+  }
+
+  const handleCardClick = () => {
+    if (!isOverlay) {
+      setShowNotes(!showNotes)
+    }
+  }
+
   return (
     <div
       className={`bg-white rounded-lg border border-gray-200 p-4 shadow-sm ${
-        isOverlay ? 'shadow-lg rotate-2 opacity-90' : 'hover:shadow-md'
+        isOverlay ? 'shadow-lg rotate-2 opacity-90' : 'hover:shadow-md cursor-pointer'
       } transition-shadow`}
+      onClick={handleCardClick}
     >
       {/* Retro name */}
       {action.retroName && (
@@ -170,18 +196,61 @@ function ActionCard({
         </div>
       )}
 
-      {/* Title */}
-      <h3
-        className={`font-medium text-gray-900 ${
-          action.status === 'done' ? 'line-through text-gray-400' : ''
-        }`}
-      >
-        {action.title}
-      </h3>
+      {/* Source item */}
+      {action.itemContent && (
+        <div className="text-xs text-gray-400 mb-2 flex items-start gap-1">
+          <MessageSquare className="w-3 h-3 mt-0.5 flex-shrink-0" />
+          <span className="line-clamp-2 italic">{action.itemContent}</span>
+        </div>
+      )}
 
-      {/* Description */}
-      {action.description && (
+      {/* Title */}
+      <div className="flex items-center justify-between">
+        <h3
+          className={`font-medium text-gray-900 ${
+            action.status === 'done' ? 'line-through text-gray-400' : ''
+          }`}
+        >
+          {action.title}
+        </h3>
+        <StickyNote className={`w-4 h-4 flex-shrink-0 ${action.description ? 'text-amber-500' : 'text-gray-300'}`} />
+      </div>
+
+      {/* Description preview (when collapsed) */}
+      {!showNotes && action.description && (
         <p className="text-sm text-gray-600 mt-2 line-clamp-2">{action.description}</p>
+      )}
+
+      {/* Notes editor (when expanded) */}
+      {showNotes && (
+        <div
+          className="mt-3"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <textarea
+            value={notesDraft}
+            onChange={(e) => setNotesDraft(e.target.value)}
+            placeholder="Ajouter des notes..."
+            rows={3}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+            autoFocus
+          />
+          <div className="flex justify-end gap-2 mt-2">
+            <button
+              onClick={() => { setNotesDraft(action.description || ''); setShowNotes(false) }}
+              className="px-3 py-1 text-xs text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleSaveNotes}
+              className="px-3 py-1 text-xs bg-primary-600 text-white rounded-lg hover:bg-primary-700"
+            >
+              Enregistrer
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Footer */}
@@ -299,7 +368,7 @@ export default function TeamActionsPage() {
   const patchMutation = useMutation<
     ActionItem,
     Error,
-    { actionId: string; data: { status?: string; assigneeId?: string | null } },
+    { actionId: string; data: { status?: string; assigneeId?: string | null; description?: string } },
     { previous: ActionItem[] | undefined }
   >({
     mutationFn: ({ actionId, data }) => teamsApi.patchAction(teamId!, actionId, data),

@@ -307,7 +307,6 @@ func (s *RetrospectiveService) NextPhase(ctx context.Context, id uuid.UUID) (mod
 		models.PhaseGroup,
 		models.PhaseVote,
 		models.PhaseDiscuss,
-		models.PhaseAction,
 		models.PhaseRoti,
 	}
 
@@ -350,7 +349,6 @@ func (s *RetrospectiveService) GetPhaseDuration(ctx context.Context, templateID 
 		models.PhaseGroup:      180,
 		models.PhaseVote:       180,
 		models.PhaseDiscuss:    900,
-		models.PhaseAction:     300,
 		models.PhaseRoti:       120,
 	}
 
@@ -540,8 +538,9 @@ type CreateActionInput struct {
 
 // PatchActionInput represents input for partially updating an action item
 type PatchActionInput struct {
-	Status     *string    `json:"status"`
-	AssigneeID *uuid.UUID `json:"assigneeId"`
+	Status      *string    `json:"status"`
+	AssigneeID  *uuid.UUID `json:"assigneeId"`
+	Description *string    `json:"description"`
 }
 
 // CreateAction creates a new action item
@@ -556,6 +555,7 @@ func (s *RetrospectiveService) CreateAction(ctx context.Context, retroID, create
 		DueDate:     input.DueDate,
 		Priority:    input.Priority,
 		CreatedBy:   createdBy,
+		Status:      "todo",
 	}
 
 	createdAction, err := s.actionRepo.Create(ctx, action)
@@ -681,6 +681,9 @@ func (s *RetrospectiveService) PatchAction(ctx context.Context, id uuid.UUID, in
 	}
 	if input.AssigneeID != nil {
 		action.AssigneeID = input.AssigneeID
+	}
+	if input.Description != nil {
+		action.Description = input.Description
 	}
 
 	if err := s.actionRepo.Update(ctx, action); err != nil {

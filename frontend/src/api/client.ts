@@ -121,7 +121,7 @@ export const teamsApi = {
   updateMemberRole: (teamId: string, userId: string, role: string) =>
     api.put(`/teams/${teamId}/members/${userId}/role`, { role }),
   getActions: (teamId: string) => api.get<ActionItem[]>(`/teams/${teamId}/actions`),
-  patchAction: (teamId: string, actionId: string, data: { status?: string; assigneeId?: string | null }) =>
+  patchAction: (teamId: string, actionId: string, data: { status?: string; assigneeId?: string | null; description?: string }) =>
     api.patch<ActionItem>(`/teams/${teamId}/actions/${actionId}`, data),
 }
 
