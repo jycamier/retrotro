@@ -1,5 +1,5 @@
 {
-  "backend": "0.0.2",
-  "frontend": "0.0.2",
-  "helm/retrotro": "0.0.2"
+  "backend": "0.0.3",
+  "frontend": "0.0.3",
+  "helm/retrotro": "0.0.3"
 }
