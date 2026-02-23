@@ -71,6 +71,13 @@ func NewWebSocketHandler(
 	hub.OnUserLeftRoom = func(roomID string, userID uuid.UUID) {
 		// Publish presence leave to other pods
 		bridge.PublishPresenceLeave(roomID, userID)
+		// Relay participant_left to remote pods (local broadcast already done by Hub)
+		bridge.PublishToRemotePods(roomID, ws.Message{
+			Type: "participant_left",
+			Payload: map[string]interface{}{
+				"userId": userID,
+			},
+		})
 		slog.Debug("OnUserLeftRoom callback triggered",
 			"roomId", roomID,
 			"userId", userID.String(),
@@ -592,18 +599,22 @@ func (h *WebSocketHandler) handleItemGroup(client *ws.Client, payload json.RawMe
 		childIDs = append(childIDs, id)
 	}
 
-	if err := h.retroService.GroupItems(context.Background(), parentID, childIDs); err != nil {
+	allAffected, err := h.retroService.GroupItems(context.Background(), parentID, childIDs)
+	if err != nil {
 		log.Printf("handleItemGroup: GroupItems failed: %v", err)
 		return
 	}
 
-	log.Printf("handleItemGroup: GroupItems succeeded, broadcasting")
-	// Broadcast grouped items update
+	// Broadcast all affected IDs (including grandchildren moved to new parent)
+	affectedStrings := make([]string, 0, len(allAffected))
+	for _, id := range allAffected {
+		affectedStrings = append(affectedStrings, id.String())
+	}
 	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type: "items_grouped",
 		Payload: map[string]interface{}{
 			"parentId": data.ParentID,
-			"childIds": data.ChildIDs,
+			"childIds": affectedStrings,
 		},
 	})
 }

@@ -423,8 +423,9 @@ func (s *RetrospectiveService) MoveItem(ctx context.Context, id uuid.UUID, colum
 }
 
 // GroupItems groups items together
-func (s *RetrospectiveService) GroupItems(ctx context.Context, parentID uuid.UUID, childIDs []uuid.UUID) error {
+func (s *RetrospectiveService) GroupItems(ctx context.Context, parentID uuid.UUID, childIDs []uuid.UUID) ([]uuid.UUID, error) {
 	log.Printf("GroupItems: parentID=%s, childIDs=%v", parentID, childIDs)
+	allAffected := make([]uuid.UUID, 0, len(childIDs))
 	for _, childID := range childIDs {
 		item, err := s.itemRepo.FindByID(ctx, childID)
 		if err != nil {
@@ -432,36 +433,32 @@ func (s *RetrospectiveService) GroupItems(ctx context.Context, parentID uuid.UUI
 			continue
 		}
 
-		// BUG FIX: When re-grouping an item that already has grouped children,
-		// we need to move those children to the new parent as well
-		// Find all items that were grouped under this child
+		// When re-grouping an item that already has grouped children,
+		// move those children to the new parent as well
 		allItems, err := s.itemRepo.ListByRetro(ctx, item.RetroID)
 		if err != nil {
 			log.Printf("GroupItems: Failed to list items for retro %s: %v", item.RetroID, err)
 		} else {
-			// Move all items that were previously grouped under childID to the new parentID
 			for _, existingItem := range allItems {
 				if existingItem.GroupID != nil && *existingItem.GroupID == childID {
-					log.Printf("GroupItems: Moving item %s from group %s to group %s", existingItem.ID, childID, parentID)
 					existingItem.GroupID = &parentID
 					if err := s.itemRepo.Update(ctx, existingItem); err != nil {
 						log.Printf("GroupItems: Failed to move item %s to new group: %v", existingItem.ID, err)
 					} else {
-						log.Printf("GroupItems: Successfully moved item %s to new group", existingItem.ID)
+						allAffected = append(allAffected, existingItem.ID)
 					}
 				}
 			}
 		}
 
-		log.Printf("GroupItems: Found item %s, setting GroupID to %s", childID, parentID)
 		item.GroupID = &parentID
 		if err := s.itemRepo.Update(ctx, item); err != nil {
 			log.Printf("GroupItems: Update failed for %s: %v", childID, err)
 		} else {
-			log.Printf("GroupItems: Updated item %s successfully", childID)
+			allAffected = append(allAffected, childID)
 		}
 	}
-	return nil
+	return allAffected, nil
 }
 
 // ListItems lists items for a retrospective

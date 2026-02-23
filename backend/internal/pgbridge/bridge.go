@@ -222,6 +222,16 @@ func (b *PGBridge) PublishPresenceLeave(roomID string, userID uuid.UUID) {
 	b.publishPresence(roomID, userID, "", "leave")
 }
 
+// PublishToRemotePods publishes a message to remote pods only (no local broadcast)
+func (b *PGBridge) PublishToRemotePods(roomID string, msg websocket.Message) {
+	data, err := json.Marshal(msg)
+	if err != nil {
+		slog.Error("pgbridge: failed to marshal message", "error", err)
+		return
+	}
+	b.publishRoom(roomID, data)
+}
+
 // publishRoom sends a room message via NOTIFY
 func (b *PGBridge) publishRoom(roomID string, data []byte) {
 	envelope := roomMessage{

@@ -396,7 +396,7 @@ func (h *RetrospectiveHandler) GroupItems(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if err := h.retroService.GroupItems(ctx, itemID, req.ChildIDs); err != nil {
+	if _, err := h.retroService.GroupItems(ctx, itemID, req.ChildIDs); err != nil {
 		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
 		return
 	}
