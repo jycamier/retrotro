@@ -77,17 +77,17 @@ test.describe('Multi-user retrospective', () => {
     await expect(ctx1.page.getByText(/vote/i)).toBeVisible({ timeout: 10_000 });
     await expect(ctx2.page.getByText(/vote/i)).toBeVisible({ timeout: 10_000 });
 
-    // Items are now revealed - find first vote button
-    const voteButtons1 = ctx1.page.locator('button:has(svg.lucide-thumbs-up)');
-    const firstVoteBtn = voteButtons1.first();
-    await firstVoteBtn.waitFor({ timeout: 5_000 });
-    await firstVoteBtn.click();
+    // Items are now revealed - find first "add vote" button (+ icon)
+    const addVoteButtons1 = ctx1.page.locator('button[title="Ajouter un vote"]');
+    const firstAddVoteBtn = addVoteButtons1.first();
+    await firstAddVoteBtn.waitFor({ timeout: 5_000 });
+    await firstAddVoteBtn.click();
 
     await ctx2.page.waitForTimeout(2_000);
 
-    // User2 also votes
-    const voteButtons2 = ctx2.page.locator('button:has(svg.lucide-thumbs-up)');
-    await voteButtons2.first().click();
+    // User2 also votes using the + button
+    const addVoteButtons2 = ctx2.page.locator('button[title="Ajouter un vote"]');
+    await addVoteButtons2.first().click();
 
     await ctx3.page.waitForTimeout(2_000);
   });

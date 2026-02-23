@@ -557,6 +557,39 @@ func (r *VoteRepository) HasVoted(ctx context.Context, itemID, userID uuid.UUID)
 	return exists, err
 }
 
+// GetVoteSummaryByRetro returns votes per user per item for a retrospective.
+// Returns map[userID]map[itemID]count
+func (r *VoteRepository) GetVoteSummaryByRetro(ctx context.Context, retroID uuid.UUID) (map[uuid.UUID]map[uuid.UUID]int, error) {
+	query := `
+		SELECT v.user_id, v.item_id, COUNT(*) as vote_count
+		FROM votes v
+		INNER JOIN items i ON v.item_id = i.id
+		WHERE i.retro_id = $1
+		GROUP BY v.user_id, v.item_id
+	`
+
+	rows, err := r.pool.Query(ctx, query, retroID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	summary := make(map[uuid.UUID]map[uuid.UUID]int)
+	for rows.Next() {
+		var userID, itemID uuid.UUID
+		var count int
+		if err := rows.Scan(&userID, &itemID, &count); err != nil {
+			return nil, err
+		}
+		if summary[userID] == nil {
+			summary[userID] = make(map[uuid.UUID]int)
+		}
+		summary[userID][itemID] = count
+	}
+
+	return summary, nil
+}
+
 // ActionItemRepository handles action item database operations
 type ActionItemRepository struct {
 	pool *pgxpool.Pool

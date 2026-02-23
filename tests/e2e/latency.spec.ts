@@ -86,12 +86,12 @@ test.describe('Multi-user retrospective with network latency', () => {
     await expect(ctx2.page.getByText(/vote/i)).toBeVisible({ timeout: 10_000 });
 
     // With fast latency, voting should be nearly instant (if items exist)
-    const voteButtons1 = ctx1.page.locator('button:has(svg.lucide-thumbs-up)');
-    if (await voteButtons1.count() > 0) {
-      await voteButtons1.first().click();
+    const addVoteButtons1 = ctx1.page.locator('button[title="Ajouter un vote"]');
+    if (await addVoteButtons1.count() > 0) {
+      await addVoteButtons1.first().click();
       await ctx2.page.waitForTimeout(1_000);
-      const voteButtons2 = ctx2.page.locator('button:has(svg.lucide-thumbs-up)');
-      await voteButtons2.first().click();
+      const addVoteButtons2 = ctx2.page.locator('button[title="Ajouter un vote"]');
+      await addVoteButtons2.first().click();
     }
   });
 

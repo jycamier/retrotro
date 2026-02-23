@@ -69,6 +69,7 @@ export interface Retrospective {
   status: RetroStatus
   currentPhase: RetroPhase
   maxVotesPerUser: number
+  maxVotesPerItem: number
   anonymousVoting: boolean
   timerStartedAt?: string
   timerDurationSeconds?: number
@@ -123,6 +124,7 @@ export interface ActionItem {
 export interface Participant {
   userId: string
   name: string
+  voteCount?: number  // number of votes used (during vote phase)
 }
 
 // Team member with connection status (for waiting room)

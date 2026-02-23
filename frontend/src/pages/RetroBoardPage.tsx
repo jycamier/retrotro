@@ -199,6 +199,8 @@ export default function RetroBoardPage() {
                 participants={participants}
                 facilitatorId={retro.facilitatorId}
                 compact
+                currentPhase={currentPhase}
+                maxVotesPerUser={retro.maxVotesPerUser}
               />
 
               {isFacilitator && (

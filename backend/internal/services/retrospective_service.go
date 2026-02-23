@@ -523,6 +523,11 @@ func (s *RetrospectiveService) GetUserVoteCountOnItem(ctx context.Context, itemI
 	return s.voteRepo.CountByUserOnItem(ctx, itemID, userID)
 }
 
+// GetVoteSummary returns the vote summary for a retrospective: map[userID]map[itemID]count
+func (s *RetrospectiveService) GetVoteSummary(ctx context.Context, retroID uuid.UUID) (map[uuid.UUID]map[uuid.UUID]int, error) {
+	return s.voteRepo.GetVoteSummaryByRetro(ctx, retroID)
+}
+
 // CreateActionInput represents input for creating an action item
 type CreateActionInput struct {
 	Title       string

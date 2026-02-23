@@ -20,7 +20,7 @@ export default function RetroBoard({
   isFacilitator,
   send,
 }: RetroBoardProps) {
-  const { items, participants, drafts } = useRetroStore()
+  const { items, participants, drafts, retro, myVotesOnItems } = useRetroStore()
   const { user } = useAuthStore()
   const [newItemContent, setNewItemContent] = useState<Record<string, string>>({})
   const [activeItem, setActiveItem] = useState<Item | null>(null)
@@ -29,6 +29,11 @@ export default function RetroBoard({
   const canAddItems = currentPhase === 'brainstorm'
   const canVote = currentPhase === 'vote'
   const canGroup = currentPhase === 'group' && isFacilitator
+
+  // Compute total votes used by current user (for multi-vote limits)
+  const myTotalVotes = Array.from(myVotesOnItems.values()).reduce((sum, count) => sum + count, 0)
+  const maxVotesPerUser = retro?.maxVotesPerUser ?? 5
+  const maxVotesPerItem = retro?.maxVotesPerItem ?? 3
 
   // Broadcast typing status with debounce
   const broadcastTyping = useCallback((columnId: string, content: string) => {
@@ -222,6 +227,8 @@ export default function RetroBoard({
               {getColumnItems(column.id).map((item) => {
                 // Obfuscate other users' items during brainstorm phase
                 const isObfuscated = currentPhase === 'brainstorm' && item.authorId !== user?.id
+                const myVoteCountOnItem = myVotesOnItems.get(item.id) || 0
+                const canAddVoteOnItem = myTotalVotes < maxVotesPerUser && myVoteCountOnItem < maxVotesPerItem
                 return (
                   <ItemCard
                     key={item.id}
@@ -234,6 +241,8 @@ export default function RetroBoard({
                     groupedItems={getGroupedItems(item.id)}
                     columnName={column.name}
                     authorName={getAuthorName(item.authorId)}
+                    myVoteCount={myVoteCountOnItem}
+                    canAddVote={canAddVoteOnItem}
                     getColumnName={getColumnName}
                     getAuthorName={getAuthorName}
                     onVote={() => handleVote(item.id)}

@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"log/slog"
 	"net/http"
@@ -293,6 +294,7 @@ func (h *WebSocketHandler) handleJoinRetro(client *ws.Client, payload json.RawMe
 	actions, _ := h.retroService.ListActions(context.Background(), retroID)
 	moods, _ := h.retroService.GetIcebreakerMoods(context.Background(), retroID)
 	rotiResults, _ := h.retroService.GetRotiResults(context.Background(), retroID)
+	voteSummary, _ := h.retroService.GetVoteSummary(context.Background(), retroID)
 
 	// Get participants (currently connected, local + remote)
 	participants := h.bridge.GetRoomClients(retroID.String())
@@ -330,6 +332,16 @@ func (h *WebSocketHandler) handleJoinRetro(client *ws.Client, payload json.RawMe
 		}
 	}
 
+	// Convert voteSummary to JSON-friendly format with string keys
+	voteSummaryJSON := make(map[string]map[string]int)
+	for userID, itemVotes := range voteSummary {
+		userKey := userID.String()
+		voteSummaryJSON[userKey] = make(map[string]int)
+		for itemID, count := range itemVotes {
+			voteSummaryJSON[userKey][itemID.String()] = count
+		}
+	}
+
 	h.hub.SendToClient(client, ws.Message{
 		Type: "retro_state",
 		Payload: map[string]interface{}{
@@ -342,6 +354,7 @@ func (h *WebSocketHandler) handleJoinRetro(client *ws.Client, payload json.RawMe
 			"moods":          moods,
 			"rotiResults":    rotiResults,
 			"teamMembers":    teamMembersWithStatus,
+			"voteSummary":    voteSummaryJSON,
 		},
 	})
 
@@ -643,15 +656,36 @@ func (h *WebSocketHandler) handleVoteAdd(client *ws.Client, payload json.RawMess
 	}
 
 	if err := h.retroService.Vote(context.Background(), retroID, itemID, client.UserID); err != nil {
+		if errors.Is(err, services.ErrVoteLimitReached) {
+			h.hub.SendToClient(client, ws.Message{
+				Type: "error",
+				Payload: map[string]interface{}{
+					"code":    "vote_limit_reached",
+					"message": "Vous avez atteint la limite de votes",
+				},
+			})
+		} else if errors.Is(err, services.ErrItemVoteLimitReached) {
+			h.hub.SendToClient(client, ws.Message{
+				Type: "error",
+				Payload: map[string]interface{}{
+					"code":    "item_vote_limit_reached",
+					"message": "Limite de votes atteinte pour cet item",
+				},
+			})
+		}
 		return
 	}
+
+	// Get updated vote count for this user
+	userVoteCount, _ := h.retroService.GetUserVoteCount(context.Background(), retroID, client.UserID)
 
 	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type: "vote_updated",
 		Payload: map[string]interface{}{
-			"itemId": data.ItemID,
-			"action": "add",
-			"userId": client.UserID,
+			"itemId":        data.ItemID,
+			"action":        "add",
+			"userId":        client.UserID,
+			"userVoteCount": userVoteCount,
 		},
 	})
 }
@@ -674,16 +708,25 @@ func (h *WebSocketHandler) handleVoteRemove(client *ws.Client, payload json.RawM
 		return
 	}
 
+	retroID, err := uuid.Parse(client.RoomID)
+	if err != nil {
+		return
+	}
+
 	if err := h.retroService.Unvote(context.Background(), itemID, client.UserID); err != nil {
 		return
 	}
 
+	// Get updated vote count for this user
+	userVoteCount, _ := h.retroService.GetUserVoteCount(context.Background(), retroID, client.UserID)
+
 	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type: "vote_updated",
 		Payload: map[string]interface{}{
-			"itemId": data.ItemID,
-			"action": "remove",
-			"userId": client.UserID,
+			"itemId":        data.ItemID,
+			"action":        "remove",
+			"userId":        client.UserID,
+			"userVoteCount": userVoteCount,
 		},
 	})
 }

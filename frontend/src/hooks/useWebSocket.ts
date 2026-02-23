@@ -13,6 +13,7 @@ interface ExtendedRetroState {
   moods: IcebreakerMood[]
   rotiResults: RotiResults | null
   teamMembers: TeamMemberStatus[] | null
+  voteSummary: Record<string, Record<string, number>> | null
 }
 
 const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
@@ -210,6 +211,11 @@ export function useWebSocket(retroId: string | undefined) {
         if (state.teamMembers) {
           retroStore.setTeamMembers(state.teamMembers)
         }
+        // Set vote summary (for multi-vote tracking)
+        if (state.voteSummary) {
+          const currentUserId = useAuthStore.getState().user?.id || ''
+          retroStore.setVoteSummary(state.voteSummary, currentUserId)
+        }
         break
       }
 
@@ -236,8 +242,13 @@ export function useWebSocket(retroId: string | undefined) {
       }
 
       case 'vote_updated': {
-        const { itemId, action } = payload as { itemId: string; action: 'add' | 'remove' }
-        retroStore.updateVote(itemId, action)
+        const { itemId, action, userId, userVoteCount } = payload as { itemId: string; action: 'add' | 'remove'; userId: string; userVoteCount: number }
+        retroStore.updateVote(itemId, action, userId, userVoteCount)
+        // Track personal votes
+        const currentUserId = useAuthStore.getState().user?.id
+        if (userId === currentUserId) {
+          retroStore.updateMyVoteOnItem(itemId, action)
+        }
         break
       }
 

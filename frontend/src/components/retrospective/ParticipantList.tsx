@@ -1,4 +1,4 @@
-import type { Participant } from '../../types'
+import type { Participant, RetroPhase } from '../../types'
 import { Crown } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -6,6 +6,8 @@ interface ParticipantListProps {
   participants: Participant[]
   facilitatorId: string
   compact?: boolean
+  currentPhase?: RetroPhase
+  maxVotesPerUser?: number
 }
 
 // Get initials/trigram from name
@@ -18,18 +20,39 @@ const getInitials = (name: string): string => {
   return name.slice(0, 2).toUpperCase()
 }
 
+// Vote dots component: ●●○○○
+function VoteDots({ used, total }: { used: number; total: number }) {
+  return (
+    <div className="flex gap-0.5">
+      {Array.from({ length: total }, (_, i) => (
+        <div
+          key={i}
+          className={clsx(
+            'w-1.5 h-1.5 rounded-full',
+            i < used ? 'bg-primary-500' : 'bg-gray-300'
+          )}
+        />
+      ))}
+    </div>
+  )
+}
+
 export default function ParticipantList({
   participants,
   facilitatorId,
   compact = false,
+  currentPhase,
+  maxVotesPerUser = 5,
 }: ParticipantListProps) {
+  const isVotePhase = currentPhase === 'vote'
+
   if (compact) {
     return (
       <div>
         <h3 className="text-xs font-medium text-gray-500 uppercase mb-2">
           Participants ({participants.length})
         </h3>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-col gap-1.5">
           {participants.map((participant) => {
             const isFacilitator = participant.userId === facilitatorId
             return (
@@ -41,8 +64,13 @@ export default function ParticipantList({
                 )}
                 title={participant.name}
               >
-                {getInitials(participant.name)}
-                {isFacilitator && <Crown className="w-3 h-3 text-yellow-600" />}
+                <span className="truncate">{getInitials(participant.name)}</span>
+                {isFacilitator && <Crown className="w-3 h-3 text-yellow-600 flex-shrink-0" />}
+                {isVotePhase && (
+                  <span className="ml-auto flex-shrink-0">
+                    <VoteDots used={participant.voteCount ?? 0} total={maxVotesPerUser} />
+                  </span>
+                )}
               </div>
             )
           })}
@@ -67,6 +95,9 @@ export default function ParticipantList({
               <p className="text-sm font-medium text-gray-900 truncate">
                 {participant.name}
               </p>
+              {isVotePhase && (
+                <VoteDots used={participant.voteCount ?? 0} total={maxVotesPerUser} />
+              )}
             </div>
             {participant.userId === facilitatorId && (
               <span title="Facilitateur">

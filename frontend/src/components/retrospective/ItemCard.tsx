@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ThumbsUp, Edit2, Trash2, Check, X, Layers, GripVertical } from 'lucide-react'
+import { ThumbsUp, Plus, Minus, Edit2, Trash2, Check, X, Layers, GripVertical } from 'lucide-react'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import type { Item } from '../../types'
 import clsx from 'clsx'
@@ -14,6 +14,8 @@ interface ItemCardProps {
   groupedItems?: Item[]
   columnName: string
   authorName: string
+  myVoteCount?: number
+  canAddVote?: boolean
   getColumnName?: (columnId: string) => string
   getAuthorName?: (authorId: string) => string
   onVote: () => void
@@ -52,6 +54,8 @@ export default function ItemCard({
   groupedItems = [],
   columnName,
   authorName,
+  myVoteCount = 0,
+  canAddVote = true,
   getColumnName,
   getAuthorName,
   onVote,
@@ -62,7 +66,6 @@ export default function ItemCard({
 }: ItemCardProps) {
   const [isEditing, setIsEditing] = useState(false)
   const [editContent, setEditContent] = useState(item.content)
-  const [hasVoted, setHasVoted] = useState(false)
   const [showGrouped, setShowGrouped] = useState(false)
 
   // Drag functionality
@@ -93,16 +96,6 @@ export default function ItemCard({
   const handleCancel = () => {
     setEditContent(item.content)
     setIsEditing(false)
-  }
-
-  const handleVoteClick = () => {
-    if (hasVoted) {
-      onUnvote()
-      setHasVoted(false)
-    } else {
-      onVote()
-      setHasVoted(true)
-    }
   }
 
   return (
@@ -179,20 +172,43 @@ export default function ItemCard({
           </p>
 
           <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-100">
-            {/* Vote button */}
+            {/* Vote buttons */}
             {canVote ? (
-              <button
-                onClick={handleVoteClick}
-                className={clsx(
-                  'flex items-center gap-1.5 px-2 py-1 rounded text-sm transition-colors',
-                  hasVoted
-                    ? 'bg-primary-100 text-primary-700'
-                    : 'text-gray-500 hover:bg-gray-100'
-                )}
-              >
-                <ThumbsUp className="w-4 h-4" />
-                <span>{item.voteCount}</span>
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={onUnvote}
+                  disabled={myVoteCount <= 0}
+                  className={clsx(
+                    'p-1 rounded transition-colors',
+                    myVoteCount > 0
+                      ? 'text-primary-600 hover:bg-primary-50'
+                      : 'text-gray-300 cursor-not-allowed'
+                  )}
+                  title="Retirer un vote"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded text-sm">
+                  <ThumbsUp className={clsx('w-4 h-4', myVoteCount > 0 ? 'text-primary-600' : 'text-gray-400')} />
+                  <span className="text-gray-700 font-medium">{item.voteCount}</span>
+                  {myVoteCount > 0 && (
+                    <span className="text-xs text-primary-600 ml-0.5">({myVoteCount})</span>
+                  )}
+                </div>
+                <button
+                  onClick={onVote}
+                  disabled={!canAddVote}
+                  className={clsx(
+                    'p-1 rounded transition-colors',
+                    canAddVote
+                      ? 'text-primary-600 hover:bg-primary-50'
+                      : 'text-gray-300 cursor-not-allowed'
+                  )}
+                  title="Ajouter un vote"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
             ) : (
               <div className="flex items-center gap-1.5 text-gray-500 text-sm">
                 <ThumbsUp className="w-4 h-4" />

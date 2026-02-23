@@ -17,6 +17,9 @@ interface RetroState {
   rotiResults: RotiResults | null
   // Waiting room state
   teamMembers: TeamMemberStatus[]
+  // Vote tracking (multi-vote)
+  myVotesOnItems: Map<string, number>  // itemId -> number of my votes on that item
+
   // Draft items state (for anonymous typing during brainstorm)
   drafts: Map<string, DraftItem>  // key: "userId-columnId"
 
@@ -46,7 +49,9 @@ interface RetroState {
   setPhase: (phase: RetroPhase) => void
 
   // Vote
-  updateVote: (itemId: string, action: 'add' | 'remove') => void
+  updateVote: (itemId: string, action: 'add' | 'remove', userId?: string, userVoteCount?: number) => void
+  updateMyVoteOnItem: (itemId: string, action: 'add' | 'remove') => void
+  setVoteSummary: (summary: Record<string, Record<string, number>>, currentUserId: string) => void
 
   // Grouping
   groupItems: (parentId: string, childIds: string[]) => void
@@ -84,6 +89,7 @@ const initialState = {
   rotiVotedUserIds: new Set<string>(),
   rotiResults: null as RotiResults | null,
   teamMembers: [] as TeamMemberStatus[],
+  myVotesOnItems: new Map<string, number>(),
   drafts: new Map<string, DraftItem>(),
 }
 
@@ -165,17 +171,65 @@ export const useRetroStore = create<RetroState>((set) => ({
 
   setPhase: (phase) => set({ currentPhase: phase }),
 
-  updateVote: (itemId, action) => set((state) => ({
-    items: state.items.map((item) => {
-      if (item.id === itemId) {
-        return {
-          ...item,
-          voteCount: action === 'add' ? item.voteCount + 1 : Math.max(0, item.voteCount - 1),
+  updateVote: (itemId, action, userId, userVoteCount) => set((state) => {
+    // Update participant voteCount if userId and userVoteCount provided
+    const newParticipants = (userId !== undefined && userVoteCount !== undefined)
+      ? state.participants.map(p =>
+          p.userId === userId ? { ...p, voteCount: userVoteCount } : p
+        )
+      : state.participants
+
+    return {
+      items: state.items.map((item) => {
+        if (item.id === itemId) {
+          return {
+            ...item,
+            voteCount: action === 'add' ? item.voteCount + 1 : Math.max(0, item.voteCount - 1),
+          }
         }
+        return item
+      }),
+      participants: newParticipants,
+    }
+  }),
+
+  // Update myVotesOnItems when the current user votes
+  updateMyVoteOnItem: (itemId: string, action: 'add' | 'remove') => set((state) => {
+    const newMyVotes = new Map(state.myVotesOnItems)
+    const current = newMyVotes.get(itemId) || 0
+    if (action === 'add') {
+      newMyVotes.set(itemId, current + 1)
+    } else {
+      newMyVotes.set(itemId, Math.max(0, current - 1))
+    }
+    return { myVotesOnItems: newMyVotes }
+  }),
+
+  setVoteSummary: (summary, currentUserId) => set((state) => {
+    // Initialize myVotesOnItems from the summary for the current user
+    const newMyVotes = new Map<string, number>()
+    const myVotes = summary[currentUserId]
+    if (myVotes) {
+      for (const [itemId, count] of Object.entries(myVotes)) {
+        newMyVotes.set(itemId, count)
       }
-      return item
-    }),
-  })),
+    }
+
+    // Compute voteCount per participant (total votes used)
+    const newParticipants = state.participants.map(p => {
+      const userVotes = summary[p.userId]
+      if (userVotes) {
+        const totalVotes = Object.values(userVotes).reduce((sum, count) => sum + count, 0)
+        return { ...p, voteCount: totalVotes }
+      }
+      return { ...p, voteCount: 0 }
+    })
+
+    return {
+      myVotesOnItems: newMyVotes,
+      participants: newParticipants,
+    }
+  }),
 
   groupItems: (parentId, childIds) => set((state) => ({
     items: state.items.map((item) => {
@@ -242,6 +296,7 @@ export const useRetroStore = create<RetroState>((set) => ({
     rotiVotedUserIds: new Set<string>(),
     rotiResults: null,
     teamMembers: [],
+    myVotesOnItems: new Map<string, number>(),
     drafts: new Map<string, DraftItem>(),
   }),
 }))
