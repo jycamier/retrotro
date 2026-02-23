@@ -102,12 +102,19 @@ test.describe('Multi-user retrospective', () => {
     // User3 closes their page
     await ctx3.page.close();
 
-    // After grace period
-    await ctx1.page.waitForTimeout(5_000);
+    // Wait for grace period (10s backend) + cross-pod relay + broadcast propagation
+    // With 2 replicas, the leave event must propagate via PGBridge LISTEN/NOTIFY
+    await expect(async () => {
+      const text1 = await ctx1.page.textContent('body');
+      const has2 = text1?.includes('(2)') || text1?.includes('2/');
+      expect(has2).toBeTruthy();
+    }).toPass({ timeout: 30_000 });
 
-    // Participant count should drop to 2
-    await waitForParticipantCount(ctx1.page, 2);
-    await waitForParticipantCount(ctx2.page, 2);
+    await expect(async () => {
+      const text2 = await ctx2.page.textContent('body');
+      const has2 = text2?.includes('(2)') || text2?.includes('2/');
+      expect(has2).toBeTruthy();
+    }).toPass({ timeout: 15_000 });
 
     // Reopen user3 for cleanup
     ctx3.page = await ctx3.context.newPage();

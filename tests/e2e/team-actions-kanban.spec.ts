@@ -35,25 +35,25 @@ test.describe('Team Actions Kanban', () => {
     await itemInput.press('Enter');
     await page.waitForTimeout(500);
 
-    // 5. Advance: brainstorm → group → vote → discuss → action
-    for (let i = 0; i < 4; i++) {
+    // 5. Advance: brainstorm → group → vote → discuss
+    for (let i = 0; i < 3; i++) {
       await nextPhase(page);
       await page.waitForTimeout(1_500);
     }
 
-    // 6. Verify we're in action phase
-    await expect(page.getByRole('heading', { name: 'Actions' })).toBeVisible({ timeout: 10_000 });
+    // 6. Verify we're in discuss phase (actions are created here)
+    await expect(page.getByRole('heading', { name: 'Discussion' })).toBeVisible({ timeout: 10_000 });
 
-    // 7. Create an action
-    const actionInput = page.locator('input[placeholder*="action"]');
+    // 7. Create an action in the DiscussionCarousel
+    const actionInput = page.locator('input[placeholder="Titre de l\'action..."]');
     await actionInput.fill('Deploy kanban feature');
     await page.getByRole('button', { name: /Créer l'action/i }).click();
     await page.waitForTimeout(500);
 
-    await expect(page.getByText('Deploy kanban feature')).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText('Deploy kanban feature').first()).toBeVisible({ timeout: 5_000 });
 
-    // 8. End the retro (action → roti → end)
-    await nextPhase(page); // action → roti
+    // 8. End the retro (discuss → roti → end)
+    await page.getByRole('button', { name: /Continuer vers ROTI/i }).click();
     await page.waitForTimeout(2_000);
 
     // Vote on ROTI (click rating 4)
@@ -108,6 +108,6 @@ test.describe('Team Actions Kanban', () => {
     await page.waitForTimeout(2_000);
 
     // 13. Verify card moved to "En cours"
-    await expect(inProgressColumn.getByText('Deploy kanban feature')).toBeVisible({ timeout: 5_000 });
+    await expect(inProgressColumn.getByText('Deploy kanban feature').first()).toBeVisible({ timeout: 5_000 });
   });
 });

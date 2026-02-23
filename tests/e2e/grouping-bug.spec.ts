@@ -94,8 +94,8 @@ test.describe('Grouping bug - re-grouping items loses previously grouped items',
     await nextPhase(ctxAdmin.page); // brainstorm → group
     await ctxAdmin.page.waitForTimeout(2_000);
 
-    await expect(ctxAdmin.page.getByText(/groupage/i)).toBeVisible({ timeout: 10_000 });
-    await expect(ctxUser1.page.getByText(/groupage/i)).toBeVisible({ timeout: 10_000 });
+    await expect(ctxAdmin.page.getByText('Group', { exact: true })).toBeVisible({ timeout: 10_000 });
+    await expect(ctxUser1.page.getByText('Group', { exact: true })).toBeVisible({ timeout: 10_000 });
   });
 
   test('Bug: Drag Item 1 to Item 2 to group them', async () => {
@@ -135,25 +135,27 @@ test.describe('Grouping bug - re-grouping items loses previously grouped items',
   test('Bug: Drag Item 2 (which now has Item 1 grouped) to Item 3 - THIS LOSES ITEM 1', async () => {
     // Verify current state before re-grouping
     // Item 2 should have Item 1 grouped under it
-    let groupedIndicator = ctxAdmin.page.getByText(/1 item groupé/);
-    await groupedIndicator.waitFor({ timeout: 5_000 });
-    await groupedIndicator.click();
-    await ctxAdmin.page.waitForTimeout(500);
+    // The group may already be expanded from previous test — ensure it's expanded
+    const item1Visible = await ctxAdmin.page.getByText('Item 1').isVisible().catch(() => false);
+    if (!item1Visible) {
+      const groupedIndicator = ctxAdmin.page.getByText(/1 item groupé/);
+      await groupedIndicator.waitFor({ timeout: 5_000 });
+      await groupedIndicator.click();
+      await ctxAdmin.page.waitForTimeout(500);
+    }
 
     // Verify Item 1 is visible before the re-group
     await expect(ctxAdmin.page.getByText('Item 1')).toBeVisible();
 
-    // Now collapse it to prepare for re-grouping
-    groupedIndicator = ctxAdmin.page.getByText(/1 item groupé/);
-    await groupedIndicator.click();
-    await ctxAdmin.page.waitForTimeout(500);
+    // Collapse grouped items if expanded
+    const indicator = ctxAdmin.page.getByText(/1 item groupé/);
+    if (await indicator.isVisible()) {
+      await indicator.click();
+      await ctxAdmin.page.waitForTimeout(500);
+    }
 
-    // Get all drag handles
-    const dragHandles = ctxAdmin.page.locator('[class*="rotate-90"]');
-    
-    // Find which handle corresponds to Item 2
-    // Item 2 should be the 2nd item in the list (Item 1 was grouped)
-    const item2Handle = dragHandles.nth(1);
+    // Item 2 is the first root item (Item 1 is grouped under it), so its drag handle is first
+    const item2Handle = ctxAdmin.page.getByRole('button', { name: 'Glisser pour grouper' }).first();
     const item3Text = ctxAdmin.page.getByText('Item 3').first();
 
     // Drag Item 2 to Item 3
@@ -197,32 +199,19 @@ test.describe('Grouping bug - re-grouping items loses previously grouped items',
   });
 
   test('Verify: Item 1 should still be grouped after the re-grouping operation', async () => {
-    // Expand all grouped items to check
-    const groupedIndicators = ctxAdmin.page.getByText(/items groupé/);
-    const count = await groupedIndicators.count();
-
-    console.log('Total grouped indicators:', count);
-
-    // For each group, expand and check for Item 1
-    for (let i = 0; i < count; i++) {
-      const indicator = groupedIndicators.nth(i);
-      await indicator.click();
-      await ctxAdmin.page.waitForTimeout(300);
+    // Ensure grouped items are expanded — if Item 1 is already visible, skip clicking
+    const item1AlreadyVisible = await ctxAdmin.page.getByText('Item 1').isVisible().catch(() => false);
+    if (!item1AlreadyVisible) {
+      const groupedIndicators = ctxAdmin.page.getByText(/items groupé/);
+      const count = await groupedIndicators.count();
+      for (let i = 0; i < count; i++) {
+        await groupedIndicators.nth(i).click();
+        await ctxAdmin.page.waitForTimeout(300);
+      }
     }
 
-    // Search for Item 1 - it should be somewhere in the grouped items
-    const item1All = ctxAdmin.page.getByText('Item 1');
-    const item1Count = await item1All.count();
-
-    console.log('Final Item 1 count:', item1Count);
-
-    if (item1Count === 0) {
-      console.log('FAILED: Item 1 is completely missing from the retro!');
-    } else {
-      console.log('PASSED: Item 1 still exists in the retro');
-    }
-
-    // This assertion should pass but will fail if bug exists
-    expect(item1Count).toBeGreaterThan(0, 'Item 1 should still exist after re-grouping');
+    // Item 1 should be visible in the expanded group
+    const item1Count = await ctxAdmin.page.getByText('Item 1').count();
+    expect(item1Count).toBeGreaterThan(0);
   });
 });
