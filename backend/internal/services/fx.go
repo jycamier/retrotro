@@ -5,8 +5,8 @@ import (
 
 	"github.com/jycamier/retrotro/backend/internal/auth"
 	"github.com/jycamier/retrotro/backend/internal/config"
+	"github.com/jycamier/retrotro/backend/internal/pgbridge"
 	"github.com/jycamier/retrotro/backend/internal/repository/postgres"
-	"github.com/jycamier/retrotro/backend/internal/websocket"
 )
 
 var Module = fx.Module("service",
@@ -46,8 +46,8 @@ func NewRetrospectiveServiceFx(
 }
 
 // NewTimerServiceFx creates the timer service for fx
-func NewTimerServiceFx(hub *websocket.Hub, retroRepo *postgres.RetrospectiveRepository, templateRepo *postgres.TemplateRepository) *TimerService {
-	return NewTimerService(hub, retroRepo, templateRepo)
+func NewTimerServiceFx(bridge *pgbridge.PGBridge, retroRepo *postgres.RetrospectiveRepository, templateRepo *postgres.TemplateRepository) *TimerService {
+	return NewTimerService(bridge, retroRepo, templateRepo)
 }
 
 // NewStatsServiceFx creates the stats service for fx

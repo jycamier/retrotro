@@ -400,6 +400,28 @@ func (h *Hub) IsUserInRoom(roomID string, userID uuid.UUID) bool {
 	return false
 }
 
+// BroadcastRaw broadcasts pre-serialized data to all clients in a room
+func (h *Hub) BroadcastRaw(roomID string, data []byte) {
+	h.broadcast <- &RoomMessage{RoomID: roomID, Message: data}
+}
+
+// CancelPendingDisconnect cancels a pending disconnect timer for a user in a room
+func (h *Hub) CancelPendingDisconnect(roomID string, userID uuid.UUID) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	pendingKey := roomID + "-" + userID.String()
+	if pending, exists := h.pendingDisconnects[pendingKey]; exists {
+		slog.Debug("hub: canceling pending disconnect (remote presence join)",
+			"userId", userID.String(),
+			"roomId", roomID,
+		)
+		pending.Canceled = true
+		pending.Timer.Stop()
+		delete(h.pendingDisconnects, pendingKey)
+	}
+}
+
 // SendToClient sends a message to a specific client
 func (h *Hub) SendToClient(client *Client, msg Message) {
 	data, err := json.Marshal(msg)

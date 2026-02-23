@@ -8,6 +8,7 @@ import (
 	"github.com/jycamier/retrotro/backend/internal/handlers"
 	"github.com/jycamier/retrotro/backend/internal/logger"
 	"github.com/jycamier/retrotro/backend/internal/migration"
+	"github.com/jycamier/retrotro/backend/internal/pgbridge"
 	"github.com/jycamier/retrotro/backend/internal/repository/postgres"
 	"github.com/jycamier/retrotro/backend/internal/services"
 	"github.com/jycamier/retrotro/backend/internal/websocket"
@@ -26,12 +27,14 @@ func main() {
 		fx.Supply(logCfg),
 
 		// Modules
+		///
 		logger.Module,
 		config.Module,
 		migration.Module,
 		postgres.Module,
 		auth.Module,
 		websocket.Module,
+		pgbridge.Module,
 		services.Module,
 		handlers.Module,
 		handlers.RouterModule,

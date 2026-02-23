@@ -7,8 +7,11 @@ export interface DevUser {
 
 export const DEV_USERS = {
   admin: { email: 'admin@retrotro.dev', displayName: 'Dev Admin' },
+  manager: { email: 'manager@retrotro.dev', displayName: 'Team Manager' },
+  facilitator: { email: 'facilitator@retrotro.dev', displayName: 'Facilitateur' },
   user1: { email: 'user1@retrotro.dev', displayName: 'User One' },
   user2: { email: 'user2@retrotro.dev', displayName: 'User Two' },
+  user3: { email: 'user3@retrotro.dev', displayName: 'User Three' },
 } as const;
 
 /**

@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/jycamier/retrotro/backend/internal/models"
+	"github.com/jycamier/retrotro/backend/internal/pgbridge"
 	"github.com/jycamier/retrotro/backend/internal/repository/postgres"
 	"github.com/jycamier/retrotro/backend/internal/websocket"
 )
@@ -40,7 +41,7 @@ func (t *RetroTimer) Stop() {
 
 // TimerService manages retrospective timers
 type TimerService struct {
-	hub          *websocket.Hub
+	bridge       *pgbridge.PGBridge
 	retroRepo    *postgres.RetrospectiveRepository
 	templateRepo *postgres.TemplateRepository
 	timers       map[uuid.UUID]*RetroTimer
@@ -48,9 +49,9 @@ type TimerService struct {
 }
 
 // NewTimerService creates a new timer service
-func NewTimerService(hub *websocket.Hub, retroRepo *postgres.RetrospectiveRepository, templateRepo *postgres.TemplateRepository) *TimerService {
+func NewTimerService(bridge *pgbridge.PGBridge, retroRepo *postgres.RetrospectiveRepository, templateRepo *postgres.TemplateRepository) *TimerService {
 	return &TimerService{
-		hub:          hub,
+		bridge:       bridge,
 		retroRepo:    retroRepo,
 		templateRepo: templateRepo,
 		timers:       make(map[uuid.UUID]*RetroTimer),
@@ -93,7 +94,7 @@ func (s *TimerService) StartTimer(ctx context.Context, retroID uuid.UUID, durati
 	_ = s.retroRepo.UpdateTimer(ctx, retroID, &now, &durationSec, nil, nil)
 
 	// Broadcast timer_started
-	s.hub.BroadcastToRoom(retroID.String(), websocket.Message{
+	s.bridge.BroadcastToRoom(retroID.String(), websocket.Message{
 		Type: "timer_started",
 		Payload: map[string]interface{}{
 			"phase":            timer.Phase,
@@ -122,7 +123,7 @@ func (s *TimerService) runTimer(timer *RetroTimer) {
 
 			// Broadcast tick every 5 seconds to reduce traffic
 			if int(remaining.Seconds())%5 == 0 || remaining.Seconds() <= 10 {
-				s.hub.BroadcastToRoom(timer.RetroID.String(), websocket.Message{
+				s.bridge.BroadcastToRoom(timer.RetroID.String(), websocket.Message{
 					Type: "timer_tick",
 					Payload: map[string]interface{}{
 						"remaining_seconds": int(remaining.Seconds()),
@@ -133,7 +134,7 @@ func (s *TimerService) runTimer(timer *RetroTimer) {
 
 			// Timer ended
 			if remaining <= 0 {
-				s.hub.BroadcastToRoom(timer.RetroID.String(), websocket.Message{
+				s.bridge.BroadcastToRoom(timer.RetroID.String(), websocket.Message{
 					Type: "timer_ended",
 					Payload: map[string]interface{}{
 						"phase": timer.Phase,
@@ -170,7 +171,7 @@ func (s *TimerService) PauseTimer(ctx context.Context, retroID uuid.UUID) error 
 	remaining := int(timer.RemainingAtPause.Seconds())
 	_ = s.retroRepo.UpdateTimer(ctx, retroID, nil, nil, &now, &remaining)
 
-	s.hub.BroadcastToRoom(retroID.String(), websocket.Message{
+	s.bridge.BroadcastToRoom(retroID.String(), websocket.Message{
 		Type: "timer_paused",
 		Payload: map[string]interface{}{
 			"remaining_seconds": remaining,
@@ -205,7 +206,7 @@ func (s *TimerService) ResumeTimer(ctx context.Context, retroID uuid.UUID) error
 	// Restart ticker
 	go s.runTimer(timer)
 
-	s.hub.BroadcastToRoom(retroID.String(), websocket.Message{
+	s.bridge.BroadcastToRoom(retroID.String(), websocket.Message{
 		Type: "timer_resumed",
 		Payload: map[string]interface{}{
 			"remaining_seconds": int(timer.RemainingAtPause.Seconds()),
@@ -247,7 +248,7 @@ func (s *TimerService) AddTime(ctx context.Context, retroID uuid.UUID, secondsTo
 	durationSec := int(timer.Duration.Seconds())
 	_ = s.retroRepo.UpdateTimer(ctx, retroID, nil, &durationSec, nil, nil)
 
-	s.hub.BroadcastToRoom(retroID.String(), websocket.Message{
+	s.bridge.BroadcastToRoom(retroID.String(), websocket.Message{
 		Type: "timer_extended",
 		Payload: map[string]interface{}{
 			"added_seconds":  secondsToAdd,

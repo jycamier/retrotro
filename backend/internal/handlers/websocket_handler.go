@@ -11,6 +11,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/jycamier/retrotro/backend/internal/models"
+	"github.com/jycamier/retrotro/backend/internal/pgbridge"
 	"github.com/jycamier/retrotro/backend/internal/services"
 	ws "github.com/jycamier/retrotro/backend/internal/websocket"
 )
@@ -27,6 +28,7 @@ var upgrader = websocket.Upgrader{
 // WebSocketHandler handles WebSocket connections
 type WebSocketHandler struct {
 	hub            *ws.Hub
+	bridge         *pgbridge.PGBridge
 	retroService   *services.RetrospectiveService
 	timerService   *services.TimerService
 	authService    *services.AuthService
@@ -48,6 +50,7 @@ type AttendeeRepository interface {
 // NewWebSocketHandler creates a new WebSocket handler
 func NewWebSocketHandler(
 	hub *ws.Hub,
+	bridge *pgbridge.PGBridge,
 	retroService *services.RetrospectiveService,
 	timerService *services.TimerService,
 	authService *services.AuthService,
@@ -56,6 +59,7 @@ func NewWebSocketHandler(
 ) *WebSocketHandler {
 	h := &WebSocketHandler{
 		hub:            hub,
+		bridge:         bridge,
 		retroService:   retroService,
 		timerService:   timerService,
 		authService:    authService,
@@ -63,8 +67,10 @@ func NewWebSocketHandler(
 		attendeeRepo:   attendeeRepo,
 	}
 
-	// Set callback for when user leaves room (handles abrupt browser close)
+	// Set callback for when user leaves room (handles abrupt browser close via grace period)
 	hub.OnUserLeftRoom = func(roomID string, userID uuid.UUID) {
+		// Publish presence leave to other pods
+		bridge.PublishPresenceLeave(roomID, userID)
 		slog.Debug("OnUserLeftRoom callback triggered",
 			"roomId", roomID,
 			"userId", userID.String(),
@@ -281,8 +287,8 @@ func (h *WebSocketHandler) handleJoinRetro(client *ws.Client, payload json.RawMe
 	moods, _ := h.retroService.GetIcebreakerMoods(context.Background(), retroID)
 	rotiResults, _ := h.retroService.GetRotiResults(context.Background(), retroID)
 
-	// Get participants (currently connected)
-	participants := h.hub.GetRoomClients(retroID.String())
+	// Get participants (currently connected, local + remote)
+	participants := h.bridge.GetRoomClients(retroID.String())
 	participantList := make([]map[string]interface{}, len(participants))
 	connectedUserIds := make(map[uuid.UUID]bool)
 	for i, p := range participants {
@@ -332,15 +338,18 @@ func (h *WebSocketHandler) handleJoinRetro(client *ws.Client, payload json.RawMe
 		},
 	})
 
-	// Broadcast participant joined only if user wasn't already in room
+	// Broadcast participant joined only if user wasn't already in room (local check only)
 	if !userAlreadyInRoom {
-		h.hub.BroadcastToRoomExcept(retroID.String(), ws.Message{
+		h.bridge.BroadcastToRoomExcept(retroID.String(), ws.Message{
 			Type: "participant_joined",
 			Payload: map[string]interface{}{
 				"userId": client.UserID,
 				"name":   client.UserName,
 			},
 		}, client)
+
+		// Publish presence join to other pods
+		h.bridge.PublishPresenceJoin(retroID.String(), client.UserID, client.UserName)
 
 		// Broadcast team member status update if in waiting phase
 		slog.Debug("checking if should broadcast team status",
@@ -356,8 +365,8 @@ func (h *WebSocketHandler) handleJoinRetro(client *ws.Client, payload json.RawMe
 
 // broadcastTeamMembersStatus broadcasts the updated team members status to all clients in the room
 func (h *WebSocketHandler) broadcastTeamMembersStatus(retroID, teamID uuid.UUID) {
-	// Get current participants
-	participants := h.hub.GetRoomClients(retroID.String())
+	// Get current participants (local + remote)
+	participants := h.bridge.GetRoomClients(retroID.String())
 	connectedUserIds := make(map[uuid.UUID]bool)
 	slog.Debug("broadcast team members status",
 		"retroId", retroID.String(),
@@ -390,7 +399,7 @@ func (h *WebSocketHandler) broadcastTeamMembersStatus(retroID, teamID uuid.UUID)
 		}
 	}
 
-	h.hub.BroadcastToRoom(retroID.String(), ws.Message{
+	h.bridge.BroadcastToRoom(retroID.String(), ws.Message{
 		Type: "team_members_updated",
 		Payload: map[string]interface{}{
 			"teamMembers": teamMembersWithStatus,
@@ -422,14 +431,17 @@ func (h *WebSocketHandler) handleLeaveRetro(client *ws.Client) {
 
 	h.hub.LeaveRoom(client)
 
-	// Only broadcast participant_left if user has no more connections in room
+	// Only broadcast participant_left if user has no more local connections in room
 	if !h.hub.IsUserInRoom(roomID, userID) {
-		h.hub.BroadcastToRoom(roomID, ws.Message{
+		h.bridge.BroadcastToRoom(roomID, ws.Message{
 			Type: "participant_left",
 			Payload: map[string]interface{}{
 				"userId": userID,
 			},
 		})
+
+		// Publish presence leave to other pods
+		h.bridge.PublishPresenceLeave(roomID, userID)
 
 		// Broadcast team member status update if in waiting phase
 		if retro != nil && retro.CurrentPhase == models.PhaseWaiting {
@@ -481,7 +493,7 @@ func (h *WebSocketHandler) handleItemCreate(client *ws.Client, payload json.RawM
 		"roomID", client.RoomID,
 	)
 
-	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type:    "item_created",
 		Payload: item,
 	})
@@ -511,7 +523,7 @@ func (h *WebSocketHandler) handleItemUpdate(client *ws.Client, payload json.RawM
 		return
 	}
 
-	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type:    "item_updated",
 		Payload: item,
 	})
@@ -539,7 +551,7 @@ func (h *WebSocketHandler) handleItemDelete(client *ws.Client, payload json.RawM
 		return
 	}
 
-	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type: "item_deleted",
 		Payload: map[string]interface{}{
 			"itemId": data.ItemID,
@@ -587,7 +599,7 @@ func (h *WebSocketHandler) handleItemGroup(client *ws.Client, payload json.RawMe
 
 	log.Printf("handleItemGroup: GroupItems succeeded, broadcasting")
 	// Broadcast grouped items update
-	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type: "items_grouped",
 		Payload: map[string]interface{}{
 			"parentId": data.ParentID,
@@ -623,7 +635,7 @@ func (h *WebSocketHandler) handleVoteAdd(client *ws.Client, payload json.RawMess
 		return
 	}
 
-	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type: "vote_updated",
 		Payload: map[string]interface{}{
 			"itemId": data.ItemID,
@@ -655,7 +667,7 @@ func (h *WebSocketHandler) handleVoteRemove(client *ws.Client, payload json.RawM
 		return
 	}
 
-	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type: "vote_updated",
 		Payload: map[string]interface{}{
 			"itemId": data.ItemID,
@@ -769,8 +781,8 @@ func (h *WebSocketHandler) handlePhaseNext(client *ws.Client) {
 	if previousPhase == models.PhaseWaiting {
 		teamMembers, err := h.teamMemberRepo.ListByTeam(ctx, retro.TeamID)
 		if err == nil {
-			// Get connected users
-			participants := h.hub.GetRoomClients(retroID.String())
+			// Get connected users (local + remote)
+			participants := h.bridge.GetRoomClients(retroID.String())
 			connectedUserIds := make(map[uuid.UUID]bool)
 			for _, p := range participants {
 				connectedUserIds[p.UserID] = true
@@ -788,7 +800,7 @@ func (h *WebSocketHandler) handlePhaseNext(client *ws.Client) {
 		return
 	}
 
-	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type: "phase_changed",
 		Payload: map[string]interface{}{
 			"previous_phase": previousPhase,
@@ -842,7 +854,7 @@ func (h *WebSocketHandler) handlePhaseSet(client *ws.Client, payload json.RawMes
 		return
 	}
 
-	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type: "phase_changed",
 		Payload: map[string]interface{}{
 			"previous_phase": previousPhase,
@@ -918,7 +930,7 @@ func (h *WebSocketHandler) handleActionCreate(client *ws.Client, payload json.Ra
 		return
 	}
 
-	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type:    "action_created",
 		Payload: action,
 	})
@@ -947,7 +959,7 @@ func (h *WebSocketHandler) handleActionComplete(client *ws.Client, payload json.
 		return
 	}
 
-	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type:    "action_updated",
 		Payload: action,
 	})
@@ -976,7 +988,7 @@ func (h *WebSocketHandler) handleActionUncomplete(client *ws.Client, payload jso
 		return
 	}
 
-	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type:    "action_updated",
 		Payload: action,
 	})
@@ -1004,7 +1016,7 @@ func (h *WebSocketHandler) handleActionDelete(client *ws.Client, payload json.Ra
 		return
 	}
 
-	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type: "action_deleted",
 		Payload: map[string]interface{}{
 			"actionId": data.ActionID,
@@ -1034,7 +1046,7 @@ func (h *WebSocketHandler) handleRetroEnd(client *ws.Client) {
 	actions, _ := h.retroService.ListActions(context.Background(), retroID)
 	rotiResults, _ := h.retroService.GetRotiResults(context.Background(), retroID)
 
-	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type: "retro_ended",
 		Payload: map[string]interface{}{
 			"retro":       retro,
@@ -1071,10 +1083,10 @@ func (h *WebSocketHandler) handleMoodSet(client *ws.Client, payload json.RawMess
 	}
 
 	// Get participant count and mood count
-	participants := h.hub.GetRoomClients(retroID.String())
+	participants := h.bridge.GetRoomClients(retroID.String())
 	moodCount, _ := h.retroService.CountIcebreakerMoods(context.Background(), retroID)
 
-	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type: "mood_updated",
 		Payload: map[string]interface{}{
 			"userId":           client.UserID,
@@ -1112,10 +1124,10 @@ func (h *WebSocketHandler) handleRotiVote(client *ws.Client, payload json.RawMes
 	}
 
 	// Get participant count and vote count
-	participants := h.hub.GetRoomClients(retroID.String())
+	participants := h.bridge.GetRoomClients(retroID.String())
 	voteCount, _ := h.retroService.CountRotiVotes(context.Background(), retroID)
 
-	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type: "roti_vote_submitted",
 		Payload: map[string]interface{}{
 			"userId":           client.UserID,
@@ -1142,7 +1154,7 @@ func (h *WebSocketHandler) handleRotiReveal(client *ws.Client) {
 		return
 	}
 
-	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type:    "roti_results_revealed",
 		Payload: results,
 	})
@@ -1164,7 +1176,7 @@ func (h *WebSocketHandler) handleDraftTyping(client *ws.Client, payload json.Raw
 	}
 
 	// Broadcast to other users (not the author) that someone is typing
-	h.hub.BroadcastToRoomExcept(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoomExcept(client.RoomID, ws.Message{
 		Type: "draft_typing",
 		Payload: map[string]interface{}{
 			"userId":        client.UserID,
@@ -1190,7 +1202,7 @@ func (h *WebSocketHandler) handleDraftClear(client *ws.Client, payload json.RawM
 	}
 
 	// Broadcast to other users that the draft is cleared
-	h.hub.BroadcastToRoomExcept(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoomExcept(client.RoomID, ws.Message{
 		Type: "draft_cleared",
 		Payload: map[string]interface{}{
 			"userId":   client.UserID,
@@ -1253,7 +1265,7 @@ func (h *WebSocketHandler) handleFacilitatorClaim(client *ws.Client) {
 	}
 
 	// Broadcast the change to all participants
-	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type: "facilitator_changed",
 		Payload: map[string]interface{}{
 			"facilitatorId":   client.UserID,
@@ -1316,8 +1328,8 @@ func (h *WebSocketHandler) handleFacilitatorTransfer(client *ws.Client, payload 
 		return
 	}
 
-	// Check if target user is in the room
-	if !h.hub.IsUserInRoom(client.RoomID, targetUserID) {
+	// Check if target user is in the room (local + remote)
+	if !h.bridge.IsUserInRoom(client.RoomID, targetUserID) {
 		h.hub.SendToClient(client, ws.Message{
 			Type: "error",
 			Payload: map[string]interface{}{
@@ -1328,7 +1340,7 @@ func (h *WebSocketHandler) handleFacilitatorTransfer(client *ws.Client, payload 
 	}
 
 	// Get target user name
-	participants := h.hub.GetRoomClients(client.RoomID)
+	participants := h.bridge.GetRoomClients(client.RoomID)
 	var targetUserName string
 	for _, p := range participants {
 		if p.UserID == targetUserID {
@@ -1345,7 +1357,7 @@ func (h *WebSocketHandler) handleFacilitatorTransfer(client *ws.Client, payload 
 	}
 
 	// Broadcast the change to all participants
-	h.hub.BroadcastToRoom(client.RoomID, ws.Message{
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
 		Type: "facilitator_changed",
 		Payload: map[string]interface{}{
 			"facilitatorId":   targetUserID,
