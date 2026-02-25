@@ -39,10 +39,11 @@ func NewWebSocketHandlerFx(
 	retroService *services.RetrospectiveService,
 	timerService *services.TimerService,
 	authService *services.AuthService,
+	leanCoffeeService *services.LeanCoffeeService,
 	teamMemberRepo *postgres.TeamMemberRepository,
 	attendeeRepo *postgres.AttendeeRepository,
 ) *WebSocketHandler {
-	return NewWebSocketHandler(hub, bridge, retroService, timerService, authService, teamMemberRepo, attendeeRepo)
+	return NewWebSocketHandler(hub, bridge, retroService, timerService, authService, leanCoffeeService, teamMemberRepo, attendeeRepo)
 }
 
 // NewAdminHandlerFx creates the admin handler for fx
