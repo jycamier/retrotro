@@ -42,6 +42,7 @@ function App() {
         <Route path="teams/:teamId" element={<TeamPage />} />
         <Route path="teams/:teamId/stats" element={<TeamStatsPage />} />
         <Route path="teams/:teamId/actions" element={<TeamActionsPage />} />
+        <Route path="teams/:teamId/topics" element={<TeamTopicsPage />} />
         <Route path="teams/:teamId/retros/:retroId" element={<RetroPage />} />
       </Route>
 
