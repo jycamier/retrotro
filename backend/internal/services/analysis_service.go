@@ -35,7 +35,7 @@ func NewAnalysisService(lcService *LeanCoffeeService) *AnalysisService {
 
 // AnalyzeTopics performs a simple keyword-based categorization of topics.
 // This is a basic implementation that can be replaced with LLM-based analysis later.
-func (s *AnalysisService) AnalyzeTopics(ctx context.Context, teamID string) (*TopicAnalysis, error) {
+func (s *AnalysisService) AnalyzeTopics(ctx context.Context, teamID uuid.UUID) (*TopicAnalysis, error) {
 	topics, err := s.lcService.ListTopicsByTeam(ctx, teamID)
 	if err != nil {
 		return nil, err
