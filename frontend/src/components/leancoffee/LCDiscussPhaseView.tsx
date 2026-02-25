@@ -97,6 +97,20 @@ export default function LCDiscussPhaseView({ send, isFacilitator, actions, parti
     return topicHistory.find(h => h.topicId === topicId)
   }
 
+  const getAuthorName = (authorId: string): string => {
+    const participant = participants.find(p => p.userId === authorId)
+    if (participant) return participant.name
+    return 'Inconnu'
+  }
+
+  const getTrigram = (name: string): string => {
+    if (!name) return '???'
+    const parts = name.trim().split(/\s+/)
+    if (parts.length >= 3) return parts.slice(0, 3).map(p => p[0]?.toUpperCase() || '').join('')
+    if (parts.length === 2) return (parts[0][0] + parts[1].slice(0, 2)).toUpperCase()
+    return name.slice(0, 3).toUpperCase()
+  }
+
   const formatDuration = (seconds: number): string => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
@@ -190,9 +204,14 @@ export default function LCDiscussPhaseView({ send, isFacilitator, actions, parti
                 )}
               >
                 <p className="text-sm text-gray-800 line-clamp-3">{topic.content}</p>
-                <div className="flex items-center gap-1 mt-2 text-xs text-gray-500">
-                  <ThumbsUp className="w-3 h-3" />
-                  {topic.voteCount}
+                <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-medium">
+                    {getTrigram(getAuthorName(topic.authorId))}
+                  </span>
+                  <span className="flex items-center gap-0.5">
+                    <ThumbsUp className="w-3 h-3" />
+                    {topic.voteCount}
+                  </span>
                 </div>
               </div>
             ))}
@@ -217,6 +236,12 @@ export default function LCDiscussPhaseView({ send, isFacilitator, actions, parti
                 <p className="text-lg text-gray-800 whitespace-pre-wrap leading-relaxed">
                   {currentTopic.content}
                 </p>
+                <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 text-sm text-gray-500">
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-primary-100 text-primary-700 text-xs font-bold">
+                    {getTrigram(getAuthorName(currentTopic.authorId))}
+                  </span>
+                  <span>Proposé par <span className="font-medium text-gray-700">{getAuthorName(currentTopic.authorId)}</span></span>
+                </div>
               </div>
 
               {/* Action creation */}
@@ -317,6 +342,9 @@ export default function LCDiscussPhaseView({ send, isFacilitator, actions, parti
                 <div key={topic.id} className="p-3 bg-white rounded-lg border border-gray-200 opacity-75">
                   <p className="text-sm text-gray-600 line-clamp-3">{topic.content}</p>
                   <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 font-medium">
+                      {getTrigram(getAuthorName(topic.authorId))}
+                    </span>
                     <span className="flex items-center gap-0.5">
                       <ThumbsUp className="w-3 h-3" />
                       {topic.voteCount}
