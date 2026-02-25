@@ -230,6 +230,8 @@ func (h *WebSocketHandler) handleMessage(client *ws.Client, data []byte) {
 		h.handleFacilitatorClaim(client)
 	case "facilitator_transfer":
 		h.handleFacilitatorTransfer(client, msg.Payload)
+	case "discuss_set_item":
+		h.handleDiscussSetItem(client, msg.Payload)
 	default:
 		log.Printf("Unknown message type: %s", msg.Type)
 	}
