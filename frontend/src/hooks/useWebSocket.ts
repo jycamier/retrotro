@@ -393,6 +393,25 @@ export function useWebSocket(retroId: string | undefined) {
         retroStore.clearDraft(userId, columnId)
         break
       }
+
+      // Lean Coffee messages
+      case 'discuss_item_changed': {
+        const { itemId } = payload as { itemId: string; itemIndex: number; totalItems: number }
+        // For LC sessions, update the current topic
+        useLeanCoffeeStore.getState().setCurrentTopicId(itemId)
+        break
+      }
+
+      case 'lc_discussion_state': {
+        const lcState = payload as LCDiscussionState
+        useLeanCoffeeStore.getState().setDiscussionState(lcState)
+        break
+      }
+
+      case 'lc_all_topics_done': {
+        useLeanCoffeeStore.getState().setAllTopicsDone(true)
+        break
+      }
     }
   }, [retroStore])
 
