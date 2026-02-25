@@ -23,6 +23,9 @@ interface RetroState {
   // Draft items state (for anonymous typing during brainstorm)
   drafts: Map<string, DraftItem>  // key: "userId-columnId"
 
+  // Synced discussion item (from discuss_item_changed)
+  syncDiscussItemId: string | null
+
   // Actions
   setRetro: (retro: Retrospective) => void
   setItems: (items: Item[]) => void
