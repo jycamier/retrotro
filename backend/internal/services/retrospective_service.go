@@ -303,14 +303,20 @@ func (s *RetrospectiveService) SetPhase(ctx context.Context, id uuid.UUID, phase
 	return s.retroRepo.UpdatePhase(ctx, id, phase)
 }
 
-// NextPhase advances to the next phase
-func (s *RetrospectiveService) NextPhase(ctx context.Context, id uuid.UUID) (models.RetroPhase, error) {
-	retro, err := s.retroRepo.FindByID(ctx, id)
-	if err != nil {
-		return "", err
+// GetPhaseSequence returns the phase sequence for a given session type
+func GetPhaseSequence(sessionType models.SessionType) []models.RetroPhase {
+	if sessionType == models.SessionTypeLeanCoffee {
+		return []models.RetroPhase{
+			models.PhaseWaiting,
+			models.PhaseIcebreaker,
+			models.PhasePropose,
+			models.PhaseVote,
+			models.PhaseDiscuss,
+			models.PhaseRoti,
+		}
 	}
-
-	phases := []models.RetroPhase{
+	// Default retro phases
+	return []models.RetroPhase{
 		models.PhaseWaiting,
 		models.PhaseIcebreaker,
 		models.PhaseBrainstorm,
@@ -319,6 +325,16 @@ func (s *RetrospectiveService) NextPhase(ctx context.Context, id uuid.UUID) (mod
 		models.PhaseDiscuss,
 		models.PhaseRoti,
 	}
+}
+
+// NextPhase advances to the next phase
+func (s *RetrospectiveService) NextPhase(ctx context.Context, id uuid.UUID) (models.RetroPhase, error) {
+	retro, err := s.retroRepo.FindByID(ctx, id)
+	if err != nil {
+		return "", err
+	}
+
+	phases := GetPhaseSequence(retro.SessionType)
 
 	currentIdx := -1
 	for i, p := range phases {
