@@ -884,6 +884,30 @@ func (h *RetrospectiveHandler) PatchTeamAction(w http.ResponseWriter, r *http.Re
 	_ = json.NewEncoder(w).Encode(action)
 }
 
+// ListTeamTopics lists all discussed topics from Lean Coffee sessions for a team
+func (h *RetrospectiveHandler) ListTeamTopics(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	teamID, err := uuid.Parse(chi.URLParam(r, "teamId"))
+	if err != nil {
+		http.Error(w, `{"error": "invalid team ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	topics, err := h.leanCoffeeService.ListTopicsByTeam(ctx, teamID)
+	if err != nil {
+		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	if topics == nil {
+		topics = []*models.DiscussedTopic{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(topics)
+}
+
 // GetIcebreakerMoods returns icebreaker moods for a retrospective
 func (h *RetrospectiveHandler) GetIcebreakerMoods(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
