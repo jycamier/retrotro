@@ -170,6 +170,7 @@ export default function RetroBoardPage() {
               participants={participants}
               send={send}
               isFacilitator={isFacilitator}
+              syncItemId={syncDiscussItemId}
             />
           </div>
         ) : isRotiPhase ? (
