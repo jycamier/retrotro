@@ -150,6 +150,11 @@ type Retrospective struct {
 	CreatedAt             time.Time          `json:"createdAt" db:"created_at"`
 	UpdatedAt             time.Time          `json:"updatedAt" db:"updated_at"`
 
+	// Lean Coffee specific fields
+	SessionType          SessionType `json:"sessionType" db:"session_type"`
+	LCCurrentTopicID     *uuid.UUID  `json:"lcCurrentTopicId,omitempty" db:"lc_current_topic_id"`
+	LCTopicTimeboxSeconds *int       `json:"lcTopicTimeboxSeconds,omitempty" db:"lc_topic_timebox_seconds"`
+
 	// Joined fields
 	Team        *Team     `json:"team,omitempty"`
 	Template    *Template `json:"template,omitempty"`
