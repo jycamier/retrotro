@@ -11,8 +11,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 
+	"github.com/jycamier/retrotro/backend/internal/bus"
 	"github.com/jycamier/retrotro/backend/internal/models"
-	"github.com/jycamier/retrotro/backend/internal/pgbridge"
 	"github.com/jycamier/retrotro/backend/internal/services"
 	ws "github.com/jycamier/retrotro/backend/internal/websocket"
 )
@@ -29,7 +29,7 @@ var upgrader = websocket.Upgrader{
 // WebSocketHandler handles WebSocket connections
 type WebSocketHandler struct {
 	hub            *ws.Hub
-	bridge         *pgbridge.PGBridge
+	bridge         bus.MessageBus
 	retroService   *services.RetrospectiveService
 	timerService   *services.TimerService
 	authService    *services.AuthService
@@ -51,7 +51,7 @@ type AttendeeRepository interface {
 // NewWebSocketHandler creates a new WebSocket handler
 func NewWebSocketHandler(
 	hub *ws.Hub,
-	bridge *pgbridge.PGBridge,
+	bridge bus.MessageBus,
 	retroService *services.RetrospectiveService,
 	timerService *services.TimerService,
 	authService *services.AuthService,

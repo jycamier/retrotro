@@ -4,8 +4,8 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/jycamier/retrotro/backend/internal/auth"
+	"github.com/jycamier/retrotro/backend/internal/bus"
 	"github.com/jycamier/retrotro/backend/internal/config"
-	"github.com/jycamier/retrotro/backend/internal/pgbridge"
 	"github.com/jycamier/retrotro/backend/internal/repository/postgres"
 )
 
@@ -46,7 +46,7 @@ func NewRetrospectiveServiceFx(
 }
 
 // NewTimerServiceFx creates the timer service for fx
-func NewTimerServiceFx(bridge *pgbridge.PGBridge, retroRepo *postgres.RetrospectiveRepository, templateRepo *postgres.TemplateRepository) *TimerService {
+func NewTimerServiceFx(bridge bus.MessageBus, retroRepo *postgres.RetrospectiveRepository, templateRepo *postgres.TemplateRepository) *TimerService {
 	return NewTimerService(bridge, retroRepo, templateRepo)
 }
 

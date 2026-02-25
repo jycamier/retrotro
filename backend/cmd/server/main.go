@@ -4,11 +4,11 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/jycamier/retrotro/backend/internal/auth"
+	"github.com/jycamier/retrotro/backend/internal/bus"
 	"github.com/jycamier/retrotro/backend/internal/config"
 	"github.com/jycamier/retrotro/backend/internal/handlers"
 	"github.com/jycamier/retrotro/backend/internal/logger"
 	"github.com/jycamier/retrotro/backend/internal/migration"
-	"github.com/jycamier/retrotro/backend/internal/pgbridge"
 	"github.com/jycamier/retrotro/backend/internal/repository/postgres"
 	"github.com/jycamier/retrotro/backend/internal/services"
 	"github.com/jycamier/retrotro/backend/internal/websocket"
@@ -34,7 +34,7 @@ func main() {
 		postgres.Module,
 		auth.Module,
 		websocket.Module,
-		pgbridge.Module,
+		bus.Module,
 		services.Module,
 		handlers.Module,
 		handlers.RouterModule,

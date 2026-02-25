@@ -8,8 +8,8 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/jycamier/retrotro/backend/internal/bus"
 	"github.com/jycamier/retrotro/backend/internal/models"
-	"github.com/jycamier/retrotro/backend/internal/pgbridge"
 	"github.com/jycamier/retrotro/backend/internal/repository/postgres"
 	"github.com/jycamier/retrotro/backend/internal/websocket"
 )
@@ -41,7 +41,7 @@ func (t *RetroTimer) Stop() {
 
 // TimerService manages retrospective timers
 type TimerService struct {
-	bridge       *pgbridge.PGBridge
+	bridge       bus.MessageBus
 	retroRepo    *postgres.RetrospectiveRepository
 	templateRepo *postgres.TemplateRepository
 	timers       map[uuid.UUID]*RetroTimer
@@ -49,7 +49,7 @@ type TimerService struct {
 }
 
 // NewTimerService creates a new timer service
-func NewTimerService(bridge *pgbridge.PGBridge, retroRepo *postgres.RetrospectiveRepository, templateRepo *postgres.TemplateRepository) *TimerService {
+func NewTimerService(bridge bus.MessageBus, retroRepo *postgres.RetrospectiveRepository, templateRepo *postgres.TemplateRepository) *TimerService {
 	return &TimerService{
 		bridge:       bridge,
 		retroRepo:    retroRepo,
