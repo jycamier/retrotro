@@ -97,6 +97,7 @@ const initialState = {
   teamMembers: [] as TeamMemberStatus[],
   myVotesOnItems: new Map<string, number>(),
   drafts: new Map<string, DraftItem>(),
+  syncDiscussItemId: null as string | null,
 }
 
 export const useRetroStore = create<RetroState>((set) => ({
