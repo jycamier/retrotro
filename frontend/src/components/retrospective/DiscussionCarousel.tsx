@@ -34,6 +34,7 @@ export default function DiscussionCarousel({
   participants,
   send,
   isFacilitator,
+  syncItemId,
 }: DiscussionCarouselProps) {
   const [localIndex, setLocalIndex] = useState(0)
   const [newActionTitle, setNewActionTitle] = useState('')
