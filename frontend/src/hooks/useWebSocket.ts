@@ -15,6 +15,7 @@ interface ExtendedRetroState {
   rotiResults: RotiResults | null
   teamMembers: TeamMemberStatus[] | null
   voteSummary: Record<string, Record<string, number>> | null
+  lcDiscussionState?: LCDiscussionState | null
 }
 
 const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
