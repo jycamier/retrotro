@@ -76,6 +76,9 @@ interface RetroState {
   setDraft: (draft: DraftItem) => void
   clearDraft: (userId: string, columnId: string) => void
 
+  // Discussion sync
+  setSyncDiscussItemId: (itemId: string | null) => void
+
   reset: () => void
 }
 
