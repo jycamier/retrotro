@@ -59,17 +59,19 @@ func NewRetrospectiveService(
 
 // CreateRetroInput represents input for creating a retrospective
 type CreateRetroInput struct {
-	Name                string
-	TeamID              uuid.UUID
-	TemplateID          uuid.UUID
-	MaxVotesPerUser     int
-	MaxVotesPerItem     int
-	AnonymousVoting     bool
-	AnonymousItems      bool
-	AllowItemEdit       *bool // Pointer to distinguish between false and not-set (defaults to true)
-	AllowVoteChange     *bool // Pointer to distinguish between false and not-set (defaults to true)
-	PhaseTimerOverrides map[models.RetroPhase]int
-	ScheduledAt         *time.Time
+	Name                  string
+	TeamID                uuid.UUID
+	TemplateID            uuid.UUID
+	SessionType           models.SessionType
+	MaxVotesPerUser       int
+	MaxVotesPerItem       int
+	AnonymousVoting       bool
+	AnonymousItems        bool
+	AllowItemEdit         *bool // Pointer to distinguish between false and not-set (defaults to true)
+	AllowVoteChange       *bool // Pointer to distinguish between false and not-set (defaults to true)
+	PhaseTimerOverrides   map[models.RetroPhase]int
+	ScheduledAt           *time.Time
+	LCTopicTimeboxSeconds *int
 }
 
 // Create creates a new retrospective
