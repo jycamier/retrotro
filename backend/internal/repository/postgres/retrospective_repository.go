@@ -330,7 +330,8 @@ func (r *RetrospectiveRepository) Update(ctx context.Context, retro *models.Retr
 		SET name = $2, status = $3, current_phase = $4, max_votes_per_user = $5,
 		    max_votes_per_item = $6, anonymous_voting = $7, anonymous_items = $8,
 		    allow_item_edit = $9, allow_vote_change = $10, phase_timer_overrides = $11,
-		    facilitator_id = $12, started_at = $13, ended_at = $14, updated_at = NOW()
+		    facilitator_id = $12, started_at = $13, ended_at = $14,
+		    lc_current_topic_id = $15, updated_at = NOW()
 		WHERE id = $1
 	`
 
@@ -344,6 +345,7 @@ func (r *RetrospectiveRepository) Update(ctx context.Context, retro *models.Retr
 		retro.MaxVotesPerUser, retro.MaxVotesPerItem, retro.AnonymousVoting, retro.AnonymousItems,
 		retro.AllowItemEdit, retro.AllowVoteChange, phaseTimerOverrides, retro.FacilitatorID,
 		retro.StartedAt, retro.EndedAt,
+		retro.LCCurrentTopicID,
 	)
 	return err
 }
