@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, ThumbsUp, MessageSquare, Layers, Plus, Check, Trash2, Calendar, User, ArrowRight, ListChecks } from 'lucide-react'
 import type { ActionItem, Item, Participant, Template } from '../../types'
 import clsx from 'clsx'
