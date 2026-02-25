@@ -16,15 +16,17 @@ import (
 
 // RetrospectiveHandler handles retrospective endpoints
 type RetrospectiveHandler struct {
-	retroService *services.RetrospectiveService
-	timerService *services.TimerService
+	retroService      *services.RetrospectiveService
+	timerService      *services.TimerService
+	leanCoffeeService *services.LeanCoffeeService
 }
 
 // NewRetrospectiveHandler creates a new retrospective handler
-func NewRetrospectiveHandler(retroService *services.RetrospectiveService, timerService *services.TimerService) *RetrospectiveHandler {
+func NewRetrospectiveHandler(retroService *services.RetrospectiveService, timerService *services.TimerService, leanCoffeeService *services.LeanCoffeeService) *RetrospectiveHandler {
 	return &RetrospectiveHandler{
-		retroService: retroService,
-		timerService: timerService,
+		retroService:      retroService,
+		timerService:      timerService,
+		leanCoffeeService: leanCoffeeService,
 	}
 }
 
