@@ -397,7 +397,9 @@ export function useWebSocket(retroId: string | undefined) {
       // Lean Coffee messages
       case 'discuss_item_changed': {
         const { itemId } = payload as { itemId: string; itemIndex: number; totalItems: number }
-        // For LC sessions, update the current topic
+        // Sync retro carousel (for retro discuss phase)
+        retroStore.setSyncDiscussItemId(itemId)
+        // For LC sessions, also update the current topic
         useLeanCoffeeStore.getState().setCurrentTopicId(itemId)
         break
       }
