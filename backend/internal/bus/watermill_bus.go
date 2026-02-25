@@ -124,9 +124,33 @@ func (b *WatermillBus) PublishToRemotePods(roomID string, msg websocket.Message)
 	}
 }
 
-// GetRoomClients returns the local clients in a room.
+// GetRoomClients returns local + remote users in a room.
 func (b *WatermillBus) GetRoomClients(roomID string) []*websocket.Client {
-	return b.hub.GetRoomClients(roomID)
+	localClients := b.hub.GetRoomClients(roomID)
+
+	b.mu.RLock()
+	remoteRoom, exists := b.remoteUsers[roomID]
+	b.mu.RUnlock()
+
+	if !exists || len(remoteRoom) == 0 {
+		return localClients
+	}
+
+	localUserIDs := make(map[uuid.UUID]bool, len(localClients))
+	for _, c := range localClients {
+		localUserIDs[c.UserID] = true
+	}
+
+	for _, ru := range remoteRoom {
+		if !localUserIDs[ru.UserID] {
+			localClients = append(localClients, &websocket.Client{
+				UserID:   ru.UserID,
+				UserName: ru.UserName,
+			})
+		}
+	}
+
+	return localClients
 }
 
 // IsUserInRoom returns true if the user is connected locally or is tracked as
@@ -145,7 +169,18 @@ func (b *WatermillBus) IsUserInRoom(roomID string, userID uuid.UUID) bool {
 }
 
 // PublishPresenceJoin publishes a presence-join event to remote pods.
+// It also removes the user from remoteUsers if they were previously tracked as remote
+// (handles the case where a user reconnects to this pod after being on another).
 func (b *WatermillBus) PublishPresenceJoin(roomID string, userID uuid.UUID, userName string) {
+	b.mu.Lock()
+	if room, exists := b.remoteUsers[roomID]; exists {
+		delete(room, userID.String())
+		if len(room) == 0 {
+			delete(b.remoteUsers, roomID)
+		}
+	}
+	b.mu.Unlock()
+
 	env := presenceMessage{
 		PodID:    b.podID,
 		RoomID:   roomID,
