@@ -56,17 +56,19 @@ func NewWebSocketHandler(
 	retroService *services.RetrospectiveService,
 	timerService *services.TimerService,
 	authService *services.AuthService,
+	leanCoffeeService *services.LeanCoffeeService,
 	teamMemberRepo TeamMemberRepository,
 	attendeeRepo AttendeeRepository,
 ) *WebSocketHandler {
 	h := &WebSocketHandler{
-		hub:            hub,
-		bridge:         bridge,
-		retroService:   retroService,
-		timerService:   timerService,
-		authService:    authService,
-		teamMemberRepo: teamMemberRepo,
-		attendeeRepo:   attendeeRepo,
+		hub:               hub,
+		bridge:            bridge,
+		retroService:      retroService,
+		timerService:      timerService,
+		authService:       authService,
+		leanCoffeeService: leanCoffeeService,
+		teamMemberRepo:    teamMemberRepo,
+		attendeeRepo:      attendeeRepo,
 	}
 
 	// Set callback for when user leaves room (handles abrupt browser close via grace period)
