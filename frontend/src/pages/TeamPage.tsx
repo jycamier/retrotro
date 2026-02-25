@@ -18,6 +18,9 @@ export default function TeamPage() {
   const openCreateModal = () => {
     const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
     setNewRetroName(`Rétro du ${today}`)
+    setSessionType('retro')
+    setSelectedTemplateId('')
+    setLcTopicTimebox(5)
     setShowCreateModal(true)
   }
 
