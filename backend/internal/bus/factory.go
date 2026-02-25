@@ -63,6 +63,8 @@ func createPubSub(cfg *config.Config, pool *pgxpool.Pool, logger watermill.Logge
 			return nil, nil, fmt.Errorf("bus: BusType is \"nats\" but NatsURL is empty")
 		}
 
+		slog.Info("bus: connecting to NATS", "url", cfg.NatsURL, "credentials", cfg.NatsCredentials != "")
+
 		var natsOpts []nats.Option
 		if cfg.NatsCredentials != "" {
 			natsOpts = append(natsOpts, nats.UserCredentials(cfg.NatsCredentials))
@@ -76,6 +78,7 @@ func createPubSub(cfg *config.Config, pool *pgxpool.Pool, logger watermill.Logge
 			logger,
 		)
 		if err != nil {
+			slog.Error("bus: failed to create NATS publisher", "url", cfg.NatsURL, "error", err)
 			return nil, nil, fmt.Errorf("bus: create nats publisher: %w", err)
 		}
 
@@ -87,10 +90,12 @@ func createPubSub(cfg *config.Config, pool *pgxpool.Pool, logger watermill.Logge
 			logger,
 		)
 		if err != nil {
+			slog.Error("bus: failed to create NATS subscriber", "url", cfg.NatsURL, "error", err)
 			_ = pub.Close()
 			return nil, nil, fmt.Errorf("bus: create nats subscriber: %w", err)
 		}
 
+		slog.Info("bus: NATS publisher and subscriber created successfully")
 		return pub, sub, nil
 
 	case "sql":
