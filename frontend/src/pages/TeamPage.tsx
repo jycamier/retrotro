@@ -252,57 +252,131 @@ export default function TeamPage() {
         )}
       </div>
 
-      {/* Create Retro Modal */}
+      {/* Create Session Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-            <h2 className="text-lg font-semibold mb-4">Create New Retrospective</h2>
+            <h2 className="text-lg font-semibold mb-4">Nouvelle session</h2>
             <form onSubmit={handleCreateRetro} className="space-y-4">
+              {/* Session Type Selector */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Type de session
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSessionType('retro')
+                      const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+                      setNewRetroName(`Rétro du ${today}`)
+                    }}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${
+                      sessionType === 'retro'
+                        ? 'border-primary-500 bg-primary-50 text-primary-700'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                    }`}
+                  >
+                    <MessageSquare className="w-6 h-6" />
+                    <span className="font-medium text-sm">Rétrospective</span>
+                    <span className="text-xs text-center opacity-75">Brainstorm, grouper, voter, discuter</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSessionType('lean_coffee')
+                      const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+                      setNewRetroName(`Lean Coffee du ${today}`)
+                      setSelectedTemplateId('')
+                    }}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${
+                      sessionType === 'lean_coffee'
+                        ? 'border-amber-500 bg-amber-50 text-amber-700'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                    }`}
+                  >
+                    <Coffee className="w-6 h-6" />
+                    <span className="font-medium text-sm">Lean Coffee</span>
+                    <span className="text-xs text-center opacity-75">Proposer, voter, discuter avec timebox</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Name
+                  Nom
                 </label>
                 <input
                   type="text"
                   value={newRetroName}
                   onChange={(e) => setNewRetroName(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  placeholder="Sprint 42 Retrospective"
+                  placeholder={sessionType === 'lean_coffee' ? 'Lean Coffee du 25 février' : 'Sprint 42 Retrospective'}
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Template
-                </label>
-                <select
-                  value={selectedTemplateId}
-                  onChange={(e) => setSelectedTemplateId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Select a template...</option>
-                  {templates?.map((template: Template) => (
-                    <option key={template.id} value={template.id}>
-                      {template.name} {template.isBuiltIn && '(Built-in)'}
-                    </option>
-                  ))}
-                </select>
-              </div>
+
+              {/* Template (retro only) */}
+              {sessionType === 'retro' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Template
+                  </label>
+                  <select
+                    value={selectedTemplateId}
+                    onChange={(e) => setSelectedTemplateId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Choisir un template...</option>
+                    {templates?.map((template: Template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name} {template.isBuiltIn && '(Built-in)'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Timebox (LC only) */}
+              {sessionType === 'lean_coffee' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Timebox par sujet (minutes)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={30}
+                    value={lcTopicTimebox}
+                    onChange={(e) => setLcTopicTimebox(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Durée par défaut pour chaque sujet. Extensible avec le bouton +5 min.
+                  </p>
+                </div>
+              )}
+
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
                   className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
                 >
-                  Cancel
+                  Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={createRetroMutation.isPending}
-                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                  className={`px-4 py-2 text-white rounded-lg disabled:opacity-50 ${
+                    sessionType === 'lean_coffee'
+                      ? 'bg-amber-600 hover:bg-amber-700'
+                      : 'bg-primary-600 hover:bg-primary-700'
+                  }`}
                 >
-                  {createRetroMutation.isPending ? 'Creating...' : 'Create'}
+                  {createRetroMutation.isPending ? 'Création...' : 'Créer'}
                 </button>
               </div>
             </form>
