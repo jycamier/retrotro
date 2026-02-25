@@ -297,6 +297,8 @@ export const useRetroStore = create<RetroState>((set) => ({
     return { drafts: newDrafts }
   }),
 
+  setSyncDiscussItemId: (itemId) => set({ syncDiscussItemId: itemId }),
+
   reset: () => set({
     ...initialState,
     moods: new Map<string, MoodWeather>(),
