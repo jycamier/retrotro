@@ -1,5 +1,6 @@
 export type Role = 'admin' | 'member'
-export type RetroPhase = 'waiting' | 'icebreaker' | 'brainstorm' | 'group' | 'vote' | 'discuss' | 'action' | 'roti'
+export type SessionType = 'retro' | 'lean_coffee'
+export type RetroPhase = 'waiting' | 'icebreaker' | 'brainstorm' | 'group' | 'vote' | 'discuss' | 'action' | 'roti' | 'propose'
 export type RetroStatus = 'draft' | 'active' | 'completed' | 'archived'
 export type MoodWeather = 'sunny' | 'partly_cloudy' | 'cloudy' | 'rainy' | 'stormy'
 
