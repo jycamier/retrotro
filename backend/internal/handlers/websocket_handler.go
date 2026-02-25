@@ -28,13 +28,14 @@ var upgrader = websocket.Upgrader{
 
 // WebSocketHandler handles WebSocket connections
 type WebSocketHandler struct {
-	hub            *ws.Hub
-	bridge         bus.MessageBus
-	retroService   *services.RetrospectiveService
-	timerService   *services.TimerService
-	authService    *services.AuthService
-	teamMemberRepo TeamMemberRepository
-	attendeeRepo   AttendeeRepository
+	hub               *ws.Hub
+	bridge            bus.MessageBus
+	retroService      *services.RetrospectiveService
+	timerService      *services.TimerService
+	authService       *services.AuthService
+	leanCoffeeService *services.LeanCoffeeService
+	teamMemberRepo    TeamMemberRepository
+	attendeeRepo      AttendeeRepository
 }
 
 // TeamMemberRepository interface for team member operations
