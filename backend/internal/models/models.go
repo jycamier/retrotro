@@ -14,6 +14,14 @@ const (
 	RoleMember Role = "member"
 )
 
+// SessionType represents the type of session
+type SessionType string
+
+const (
+	SessionTypeRetro      SessionType = "retro"
+	SessionTypeLeanCoffee SessionType = "lean_coffee"
+)
+
 // RetroPhase represents phases of a retrospective
 type RetroPhase string
 
@@ -26,6 +34,7 @@ const (
 	PhaseDiscuss    RetroPhase = "discuss"
 	PhaseAction     RetroPhase = "action"
 	PhaseRoti       RetroPhase = "roti"
+	PhasePropose    RetroPhase = "propose"
 )
 
 // MoodWeather represents weather-based mood for icebreaker
