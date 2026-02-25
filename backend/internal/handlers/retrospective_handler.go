@@ -910,6 +910,26 @@ func (h *RetrospectiveHandler) ListTeamTopics(w http.ResponseWriter, r *http.Req
 	_ = json.NewEncoder(w).Encode(topics)
 }
 
+// AnalyzeTeamTopics analyzes and categorizes discussed topics for a team
+func (h *RetrospectiveHandler) AnalyzeTeamTopics(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	teamID, err := uuid.Parse(chi.URLParam(r, "teamId"))
+	if err != nil {
+		http.Error(w, `{"error": "invalid team ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	analysis, err := h.analysisService.AnalyzeTopics(ctx, teamID)
+	if err != nil {
+		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(analysis)
+}
+
 // GetIcebreakerMoods returns icebreaker moods for a retrospective
 func (h *RetrospectiveHandler) GetIcebreakerMoods(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
