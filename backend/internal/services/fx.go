@@ -19,6 +19,7 @@ var Module = fx.Module("service",
 		NewDevSeederFx,
 		NewWebhookServiceFx,
 		NewLeanCoffeeServiceFx,
+		NewAnalysisServiceFx,
 	),
 )
 
