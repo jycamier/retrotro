@@ -7,8 +7,10 @@ import DashboardPage from './pages/DashboardPage'
 import TeamPage from './pages/TeamPage'
 import TeamStatsPage from './pages/TeamStatsPage'
 import TeamActionsPage from './pages/TeamActionsPage'
+import TeamTopicsPage from './pages/TeamTopicsPage'
 import RetroPage from './pages/RetroPage'
 import RetroBoardPage from './pages/RetroBoardPage'
+import LeanCoffeeBoardPage from './pages/LeanCoffeeBoardPage'
 import UsersPage from './pages/UsersPage'
 import TeamsAdminPage from './pages/TeamsAdminPage'
 
@@ -40,12 +42,19 @@ function App() {
         <Route path="teams/:teamId" element={<TeamPage />} />
         <Route path="teams/:teamId/stats" element={<TeamStatsPage />} />
         <Route path="teams/:teamId/actions" element={<TeamActionsPage />} />
+        <Route path="teams/:teamId/topics" element={<TeamTopicsPage />} />
         <Route path="teams/:teamId/retros/:retroId" element={<RetroPage />} />
       </Route>
 
       <Route path="/retro/:retroId" element={
         <ProtectedRoute>
           <RetroBoardPage />
+        </ProtectedRoute>
+      } />
+
+      <Route path="/leancoffee/:sessionId" element={
+        <ProtectedRoute>
+          <LeanCoffeeBoardPage />
         </ProtectedRoute>
       } />
     </Routes>

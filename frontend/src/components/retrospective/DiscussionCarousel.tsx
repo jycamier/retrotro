@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, ThumbsUp, MessageSquare, Layers, Plus, Check, Trash2, Calendar, User, ArrowRight, ListChecks } from 'lucide-react'
 import type { ActionItem, Item, Participant, Template } from '../../types'
 import clsx from 'clsx'
@@ -11,6 +11,7 @@ interface DiscussionCarouselProps {
   participants: Participant[]
   send: (type: string, payload: Record<string, unknown>) => void
   isFacilitator: boolean
+  syncItemId?: string | null  // externally controlled item (from discuss_item_changed)
 }
 
 // Helper to get trigram from name
@@ -33,8 +34,9 @@ export default function DiscussionCarousel({
   participants,
   send,
   isFacilitator,
+  syncItemId,
 }: DiscussionCarouselProps) {
-  const [currentIndex, setCurrentIndex] = useState(0)
+  const [localIndex, setLocalIndex] = useState(0)
   const [newActionTitle, setNewActionTitle] = useState('')
   const [newActionAssignee, setNewActionAssignee] = useState('')
   const [newActionDueDate, setNewActionDueDate] = useState('')
@@ -50,6 +52,17 @@ export default function DiscussionCarousel({
       return bTotalVotes - aTotalVotes
     })
   }, [items])
+
+  // Sync carousel when an external syncItemId is received (from discuss_item_changed)
+  useEffect(() => {
+    if (!syncItemId) return
+    const idx = discussionItems.findIndex(item => item.id === syncItemId)
+    if (idx >= 0 && idx !== localIndex) {
+      setLocalIndex(idx)
+    }
+  }, [syncItemId, discussionItems, localIndex])
+
+  const currentIndex = localIndex
 
   const getGroupedItems = (parentId: string): Item[] => {
     return items.filter(item => item.groupId === parentId)
@@ -73,11 +86,19 @@ export default function DiscussionCarousel({
     : []
 
   const goToPrevious = () => {
-    setCurrentIndex(prev => (prev > 0 ? prev - 1 : totalItems - 1))
+    const newIndex = currentIndex > 0 ? currentIndex - 1 : totalItems - 1
+    if (isFacilitator && discussionItems[newIndex]) {
+      send('discuss_set_item', { itemId: discussionItems[newIndex].id })
+    }
+    setLocalIndex(newIndex)
   }
 
   const goToNext = () => {
-    setCurrentIndex(prev => (prev < totalItems - 1 ? prev + 1 : 0))
+    const newIndex = currentIndex < totalItems - 1 ? currentIndex + 1 : 0
+    if (isFacilitator && discussionItems[newIndex]) {
+      send('discuss_set_item', { itemId: discussionItems[newIndex].id })
+    }
+    setLocalIndex(newIndex)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -419,10 +440,15 @@ export default function DiscussionCarousel({
 
         {/* Progress dots */}
         <div className="flex items-center gap-1.5">
-          {discussionItems.slice(0, 10).map((_, index) => (
+          {discussionItems.slice(0, 10).map((item, index) => (
             <button
               key={index}
-              onClick={() => setCurrentIndex(index)}
+              onClick={() => {
+                if (isFacilitator) {
+                  send('discuss_set_item', { itemId: item.id })
+                }
+                setLocalIndex(index)
+              }}
               className={clsx(
                 'w-2.5 h-2.5 rounded-full transition-colors',
                 index === currentIndex

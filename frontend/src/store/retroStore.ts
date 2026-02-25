@@ -23,6 +23,9 @@ interface RetroState {
   // Draft items state (for anonymous typing during brainstorm)
   drafts: Map<string, DraftItem>  // key: "userId-columnId"
 
+  // Synced discussion item (from discuss_item_changed)
+  syncDiscussItemId: string | null
+
   // Actions
   setRetro: (retro: Retrospective) => void
   setItems: (items: Item[]) => void
@@ -73,6 +76,9 @@ interface RetroState {
   setDraft: (draft: DraftItem) => void
   clearDraft: (userId: string, columnId: string) => void
 
+  // Discussion sync
+  setSyncDiscussItemId: (itemId: string | null) => void
+
   reset: () => void
 }
 
@@ -91,6 +97,7 @@ const initialState = {
   teamMembers: [] as TeamMemberStatus[],
   myVotesOnItems: new Map<string, number>(),
   drafts: new Map<string, DraftItem>(),
+  syncDiscussItemId: null as string | null,
 }
 
 export const useRetroStore = create<RetroState>((set) => ({
@@ -290,6 +297,8 @@ export const useRetroStore = create<RetroState>((set) => ({
     return { drafts: newDrafts }
   }),
 
+  setSyncDiscussItemId: (itemId) => set({ syncDiscussItemId: itemId }),
+
   reset: () => set({
     ...initialState,
     moods: new Map<string, MoodWeather>(),
@@ -298,5 +307,6 @@ export const useRetroStore = create<RetroState>((set) => ({
     teamMembers: [],
     myVotesOnItems: new Map<string, number>(),
     drafts: new Map<string, DraftItem>(),
+    syncDiscussItemId: null,
   }),
 }))

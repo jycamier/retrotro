@@ -59,28 +59,39 @@ func NewRetrospectiveService(
 
 // CreateRetroInput represents input for creating a retrospective
 type CreateRetroInput struct {
-	Name                string
-	TeamID              uuid.UUID
-	TemplateID          uuid.UUID
-	MaxVotesPerUser     int
-	MaxVotesPerItem     int
-	AnonymousVoting     bool
-	AnonymousItems      bool
-	AllowItemEdit       *bool // Pointer to distinguish between false and not-set (defaults to true)
-	AllowVoteChange     *bool // Pointer to distinguish between false and not-set (defaults to true)
-	PhaseTimerOverrides map[models.RetroPhase]int
-	ScheduledAt         *time.Time
+	Name                  string
+	TeamID                uuid.UUID
+	TemplateID            uuid.UUID
+	SessionType           models.SessionType
+	MaxVotesPerUser       int
+	MaxVotesPerItem       int
+	AnonymousVoting       bool
+	AnonymousItems        bool
+	AllowItemEdit         *bool // Pointer to distinguish between false and not-set (defaults to true)
+	AllowVoteChange       *bool // Pointer to distinguish between false and not-set (defaults to true)
+	PhaseTimerOverrides   map[models.RetroPhase]int
+	ScheduledAt           *time.Time
+	LCTopicTimeboxSeconds *int
 }
 
 // Create creates a new retrospective
 func (s *RetrospectiveService) Create(ctx context.Context, facilitatorID uuid.UUID, input CreateRetroInput) (*models.Retrospective, error) {
-	// Verify template exists
-	_, err := s.templateRepo.FindByID(ctx, input.TemplateID)
-	if err != nil {
-		if errors.Is(err, postgres.ErrNotFound) {
-			return nil, ErrTemplateNotFound
+	// For Lean Coffee sessions, use the built-in LC template if no template specified
+	if input.SessionType == models.SessionTypeLeanCoffee && input.TemplateID == uuid.Nil {
+		lcTemplate, err := s.templateRepo.FindBuiltInByName(ctx, "Lean Coffee")
+		if err != nil {
+			return nil, errors.New("lean coffee template not found")
 		}
-		return nil, err
+		input.TemplateID = lcTemplate.ID
+	} else {
+		// Verify template exists
+		_, err := s.templateRepo.FindByID(ctx, input.TemplateID)
+		if err != nil {
+			if errors.Is(err, postgres.ErrNotFound) {
+				return nil, ErrTemplateNotFound
+			}
+			return nil, err
+		}
 	}
 
 	maxVotes := input.MaxVotesPerUser
@@ -104,22 +115,36 @@ func (s *RetrospectiveService) Create(ctx context.Context, facilitatorID uuid.UU
 		allowVoteChange = *input.AllowVoteChange
 	}
 
+	// Default session type to retro
+	sessionType := input.SessionType
+	if sessionType == "" {
+		sessionType = models.SessionTypeRetro
+	}
+
+	// Set initial phase based on session type
+	initialPhase := models.PhaseBrainstorm
+	if sessionType == models.SessionTypeLeanCoffee {
+		initialPhase = models.PhaseWaiting
+	}
+
 	retro := &models.Retrospective{
-		ID:                  uuid.New(),
-		Name:                input.Name,
-		TeamID:              input.TeamID,
-		TemplateID:          input.TemplateID,
-		FacilitatorID:       facilitatorID,
-		Status:              models.StatusDraft,
-		CurrentPhase:        models.PhaseBrainstorm,
-		MaxVotesPerUser:     maxVotes,
-		MaxVotesPerItem:     maxVotesPerItem,
-		AnonymousVoting:     input.AnonymousVoting,
-		AnonymousItems:      input.AnonymousItems,
-		AllowItemEdit:       allowItemEdit,
-		AllowVoteChange:     allowVoteChange,
-		PhaseTimerOverrides: input.PhaseTimerOverrides,
-		ScheduledAt:         input.ScheduledAt,
+		ID:                    uuid.New(),
+		Name:                  input.Name,
+		TeamID:                input.TeamID,
+		TemplateID:            input.TemplateID,
+		FacilitatorID:         facilitatorID,
+		Status:                models.StatusDraft,
+		CurrentPhase:          initialPhase,
+		MaxVotesPerUser:       maxVotes,
+		MaxVotesPerItem:       maxVotesPerItem,
+		AnonymousVoting:       input.AnonymousVoting,
+		AnonymousItems:        input.AnonymousItems,
+		AllowItemEdit:         allowItemEdit,
+		AllowVoteChange:       allowVoteChange,
+		PhaseTimerOverrides:   input.PhaseTimerOverrides,
+		ScheduledAt:           input.ScheduledAt,
+		SessionType:           sessionType,
+		LCTopicTimeboxSeconds: input.LCTopicTimeboxSeconds,
 	}
 
 	return s.retroRepo.Create(ctx, retro)
@@ -293,14 +318,20 @@ func (s *RetrospectiveService) SetPhase(ctx context.Context, id uuid.UUID, phase
 	return s.retroRepo.UpdatePhase(ctx, id, phase)
 }
 
-// NextPhase advances to the next phase
-func (s *RetrospectiveService) NextPhase(ctx context.Context, id uuid.UUID) (models.RetroPhase, error) {
-	retro, err := s.retroRepo.FindByID(ctx, id)
-	if err != nil {
-		return "", err
+// GetPhaseSequence returns the phase sequence for a given session type
+func GetPhaseSequence(sessionType models.SessionType) []models.RetroPhase {
+	if sessionType == models.SessionTypeLeanCoffee {
+		return []models.RetroPhase{
+			models.PhaseWaiting,
+			models.PhaseIcebreaker,
+			models.PhasePropose,
+			models.PhaseVote,
+			models.PhaseDiscuss,
+			models.PhaseRoti,
+		}
 	}
-
-	phases := []models.RetroPhase{
+	// Default retro phases
+	return []models.RetroPhase{
 		models.PhaseWaiting,
 		models.PhaseIcebreaker,
 		models.PhaseBrainstorm,
@@ -309,6 +340,16 @@ func (s *RetrospectiveService) NextPhase(ctx context.Context, id uuid.UUID) (mod
 		models.PhaseDiscuss,
 		models.PhaseRoti,
 	}
+}
+
+// NextPhase advances to the next phase
+func (s *RetrospectiveService) NextPhase(ctx context.Context, id uuid.UUID) (models.RetroPhase, error) {
+	retro, err := s.retroRepo.FindByID(ctx, id)
+	if err != nil {
+		return "", err
+	}
+
+	phases := GetPhaseSequence(retro.SessionType)
 
 	currentIdx := -1
 	for i, p := range phases {
@@ -350,6 +391,7 @@ func (s *RetrospectiveService) GetPhaseDuration(ctx context.Context, templateID 
 		models.PhaseVote:       180,
 		models.PhaseDiscuss:    900,
 		models.PhaseRoti:       120,
+		models.PhasePropose:    300,
 	}
 
 	return defaults[phase], nil

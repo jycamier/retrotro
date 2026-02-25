@@ -1,5 +1,6 @@
 export type Role = 'admin' | 'member'
-export type RetroPhase = 'waiting' | 'icebreaker' | 'brainstorm' | 'group' | 'vote' | 'discuss' | 'action' | 'roti'
+export type SessionType = 'retro' | 'lean_coffee'
+export type RetroPhase = 'waiting' | 'icebreaker' | 'brainstorm' | 'group' | 'vote' | 'discuss' | 'action' | 'roti' | 'propose'
 export type RetroStatus = 'draft' | 'active' | 'completed' | 'archived'
 export type MoodWeather = 'sunny' | 'partly_cloudy' | 'cloudy' | 'rainy' | 'stormy'
 
@@ -68,6 +69,7 @@ export interface Retrospective {
   facilitatorId: string
   status: RetroStatus
   currentPhase: RetroPhase
+  sessionType: SessionType
   maxVotesPerUser: number
   maxVotesPerItem: number
   anonymousVoting: boolean
@@ -79,6 +81,8 @@ export interface Retrospective {
   startedAt?: string
   endedAt?: string
   rotiRevealed: boolean
+  lcCurrentTopicId?: string
+  lcTopicTimeboxSeconds?: number
   createdAt: string
   updatedAt: string
   template?: Template
@@ -283,4 +287,36 @@ export interface DevTeam {
 export interface DevUsersResponse {
   users: DevUser[]
   team: DevTeam
+}
+
+// Lean Coffee types
+export interface LCDiscussionState {
+  currentTopicId: string | null
+  queue: Item[]
+  done: Item[]
+  topicHistory: LCTopicHistory[]
+}
+
+export interface LCTopicHistory {
+  id: string
+  retroId: string
+  topicId: string
+  discussionOrder: number
+  totalDiscussionSeconds: number
+  extensionCount: number
+  startedAt: string
+  endedAt?: string
+}
+
+export interface DiscussedTopic {
+  id: string
+  content: string
+  authorId: string
+  authorName: string
+  sessionId: string
+  sessionName: string
+  discussedAt: string
+  discussionOrder: number
+  totalDiscussionSeconds: number
+  extensionCount: number
 }

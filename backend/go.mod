@@ -4,7 +4,6 @@ go 1.24.0
 
 require (
 	github.com/ThreeDotsLabs/watermill v1.5.1
-	github.com/ThreeDotsLabs/watermill-nats/v2 v2.1.3
 	github.com/ThreeDotsLabs/watermill-sql/v3 v3.1.0
 	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/go-chi/chi/v5 v5.2.4

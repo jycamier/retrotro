@@ -14,6 +14,14 @@ const (
 	RoleMember Role = "member"
 )
 
+// SessionType represents the type of session
+type SessionType string
+
+const (
+	SessionTypeRetro      SessionType = "retro"
+	SessionTypeLeanCoffee SessionType = "lean_coffee"
+)
+
 // RetroPhase represents phases of a retrospective
 type RetroPhase string
 
@@ -26,6 +34,7 @@ const (
 	PhaseDiscuss    RetroPhase = "discuss"
 	PhaseAction     RetroPhase = "action"
 	PhaseRoti       RetroPhase = "roti"
+	PhasePropose    RetroPhase = "propose"
 )
 
 // MoodWeather represents weather-based mood for icebreaker
@@ -140,6 +149,11 @@ type Retrospective struct {
 	RotiRevealed          bool               `json:"rotiRevealed" db:"roti_revealed"`
 	CreatedAt             time.Time          `json:"createdAt" db:"created_at"`
 	UpdatedAt             time.Time          `json:"updatedAt" db:"updated_at"`
+
+	// Lean Coffee specific fields
+	SessionType          SessionType `json:"sessionType" db:"session_type"`
+	LCCurrentTopicID     *uuid.UUID  `json:"lcCurrentTopicId,omitempty" db:"lc_current_topic_id"`
+	LCTopicTimeboxSeconds *int       `json:"lcTopicTimeboxSeconds,omitempty" db:"lc_topic_timebox_seconds"`
 
 	// Joined fields
 	Team        *Team     `json:"team,omitempty"`
@@ -383,4 +397,30 @@ type TeamMemberStatus struct {
 	AvatarURL   *string   `json:"avatarUrl,omitempty"`
 	Role        Role      `json:"role"`
 	IsConnected bool      `json:"isConnected"`
+}
+
+// LCTopicHistory represents the discussion history of a Lean Coffee topic
+type LCTopicHistory struct {
+	ID                     uuid.UUID  `json:"id" db:"id"`
+	RetroID                uuid.UUID  `json:"retroId" db:"retro_id"`
+	TopicID                uuid.UUID  `json:"topicId" db:"topic_id"`
+	DiscussionOrder        int        `json:"discussionOrder" db:"discussion_order"`
+	TotalDiscussionSeconds int        `json:"totalDiscussionSeconds" db:"total_discussion_seconds"`
+	ExtensionCount         int        `json:"extensionCount" db:"extension_count"`
+	StartedAt              time.Time  `json:"startedAt" db:"started_at"`
+	EndedAt                *time.Time `json:"endedAt,omitempty" db:"ended_at"`
+}
+
+// DiscussedTopic represents a topic discussed in a Lean Coffee session (for team topics page)
+type DiscussedTopic struct {
+	ID                     uuid.UUID `json:"id"`
+	Content                string    `json:"content"`
+	AuthorID               uuid.UUID `json:"authorId"`
+	AuthorName             string    `json:"authorName"`
+	SessionID              uuid.UUID `json:"sessionId"`
+	SessionName            string    `json:"sessionName"`
+	DiscussedAt            time.Time `json:"discussedAt"`
+	DiscussionOrder        int       `json:"discussionOrder"`
+	TotalDiscussionSeconds int       `json:"totalDiscussionSeconds"`
+	ExtensionCount         int       `json:"extensionCount"`
 }

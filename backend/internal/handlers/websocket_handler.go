@@ -28,13 +28,14 @@ var upgrader = websocket.Upgrader{
 
 // WebSocketHandler handles WebSocket connections
 type WebSocketHandler struct {
-	hub            *ws.Hub
-	bridge         bus.MessageBus
-	retroService   *services.RetrospectiveService
-	timerService   *services.TimerService
-	authService    *services.AuthService
-	teamMemberRepo TeamMemberRepository
-	attendeeRepo   AttendeeRepository
+	hub               *ws.Hub
+	bridge            bus.MessageBus
+	retroService      *services.RetrospectiveService
+	timerService      *services.TimerService
+	authService       *services.AuthService
+	leanCoffeeService *services.LeanCoffeeService
+	teamMemberRepo    TeamMemberRepository
+	attendeeRepo      AttendeeRepository
 }
 
 // TeamMemberRepository interface for team member operations
@@ -55,17 +56,19 @@ func NewWebSocketHandler(
 	retroService *services.RetrospectiveService,
 	timerService *services.TimerService,
 	authService *services.AuthService,
+	leanCoffeeService *services.LeanCoffeeService,
 	teamMemberRepo TeamMemberRepository,
 	attendeeRepo AttendeeRepository,
 ) *WebSocketHandler {
 	h := &WebSocketHandler{
-		hub:            hub,
-		bridge:         bridge,
-		retroService:   retroService,
-		timerService:   timerService,
-		authService:    authService,
-		teamMemberRepo: teamMemberRepo,
-		attendeeRepo:   attendeeRepo,
+		hub:               hub,
+		bridge:            bridge,
+		retroService:      retroService,
+		timerService:      timerService,
+		authService:       authService,
+		leanCoffeeService: leanCoffeeService,
+		teamMemberRepo:    teamMemberRepo,
+		attendeeRepo:      attendeeRepo,
 	}
 
 	// Set callback for when user leaves room (handles abrupt browser close via grace period)
@@ -227,6 +230,8 @@ func (h *WebSocketHandler) handleMessage(client *ws.Client, data []byte) {
 		h.handleFacilitatorClaim(client)
 	case "facilitator_transfer":
 		h.handleFacilitatorTransfer(client, msg.Payload)
+	case "discuss_set_item":
+		h.handleDiscussSetItem(client, msg.Payload)
 	default:
 		log.Printf("Unknown message type: %s", msg.Type)
 	}
@@ -342,20 +347,31 @@ func (h *WebSocketHandler) handleJoinRetro(client *ws.Client, payload json.RawMe
 		}
 	}
 
+	// Build retro_state payload
+	retroStatePayload := map[string]interface{}{
+		"retro":          retro,
+		"items":          items,
+		"actions":        actions,
+		"participants":   participantList,
+		"timerRunning":   h.timerService.IsTimerRunning(retroID),
+		"timerRemaining": h.timerService.GetRemainingSeconds(retroID),
+		"moods":          moods,
+		"rotiResults":    rotiResults,
+		"teamMembers":    teamMembersWithStatus,
+		"voteSummary":    voteSummaryJSON,
+	}
+
+	// Add LC discussion state if this is a Lean Coffee session
+	if retro.SessionType == models.SessionTypeLeanCoffee {
+		lcState, err := h.leanCoffeeService.GetDiscussionState(context.Background(), retroID)
+		if err == nil {
+			retroStatePayload["lcDiscussionState"] = lcState
+		}
+	}
+
 	h.hub.SendToClient(client, ws.Message{
-		Type: "retro_state",
-		Payload: map[string]interface{}{
-			"retro":          retro,
-			"items":          items,
-			"actions":        actions,
-			"participants":   participantList,
-			"timerRunning":   h.timerService.IsTimerRunning(retroID),
-			"timerRemaining": h.timerService.GetRemainingSeconds(retroID),
-			"moods":          moods,
-			"rotiResults":    rotiResults,
-			"teamMembers":    teamMembersWithStatus,
-			"voteSummary":    voteSummaryJSON,
-		},
+		Type:    "retro_state",
+		Payload: retroStatePayload,
 	})
 
 	// Broadcast participant joined only if user wasn't already in room (local check only)
@@ -861,6 +877,17 @@ func (h *WebSocketHandler) handlePhaseNext(client *ws.Client) {
 			"current_phase":  nextPhase,
 		},
 	})
+
+	// For LC sessions entering discuss phase, broadcast the initial discussion state
+	if retro.SessionType == models.SessionTypeLeanCoffee && nextPhase == models.PhaseDiscuss {
+		lcState, err := h.leanCoffeeService.GetDiscussionState(ctx, retroID)
+		if err == nil {
+			h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
+				Type:    "lc_discussion_state",
+				Payload: lcState,
+			})
+		}
+	}
 
 	// Auto-start timer for the new phase if configured
 	h.autoStartPhaseTimer(ctx, retroID, retro.TemplateID, nextPhase)
@@ -1416,6 +1443,98 @@ func (h *WebSocketHandler) handleFacilitatorTransfer(client *ws.Client, payload 
 		Payload: map[string]interface{}{
 			"facilitatorId":   targetUserID,
 			"facilitatorName": targetUserName,
+		},
+	})
+}
+
+// handleDiscussSetItem handles setting the current discussion item.
+// For retros: broadcasts discuss_item_changed to sync the carousel.
+// For LC: also updates lc_current_topic_id, records history, and starts timer.
+func (h *WebSocketHandler) handleDiscussSetItem(client *ws.Client, payload json.RawMessage) {
+	if client.RoomID == "" {
+		return
+	}
+
+	var data struct {
+		ItemID string `json:"itemId"`
+	}
+	if err := json.Unmarshal(payload, &data); err != nil {
+		log.Printf("handleDiscussSetItem: failed to unmarshal payload: %v", err)
+		return
+	}
+
+	retroID, err := uuid.Parse(client.RoomID)
+	if err != nil {
+		return
+	}
+
+	itemID, err := uuid.Parse(data.ItemID)
+	if err != nil {
+		return
+	}
+
+	ctx := context.Background()
+	retro, err := h.retroService.GetByID(ctx, retroID)
+	if err != nil {
+		log.Printf("handleDiscussSetItem: failed to get retro: %v", err)
+		return
+	}
+
+	// Only facilitator can navigate
+	if retro.FacilitatorID != client.UserID {
+		h.hub.SendToClient(client, ws.Message{
+			Type: "error",
+			Payload: map[string]interface{}{
+				"message": "Only the facilitator can navigate discussion items",
+			},
+		})
+		return
+	}
+
+	if retro.SessionType == models.SessionTypeLeanCoffee {
+		// LC mode: update topic, record history, start timer
+		history, _, err := h.leanCoffeeService.SetTopic(ctx, retroID, itemID)
+		if err != nil {
+			log.Printf("handleDiscussSetItem: failed to set LC topic: %v", err)
+			return
+		}
+
+		// Broadcast LC-specific state update
+		lcState, err := h.leanCoffeeService.GetDiscussionState(ctx, retroID)
+		if err == nil {
+			h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
+				Type:    "lc_discussion_state",
+				Payload: lcState,
+			})
+		}
+
+		// Start topic timer if configured
+		timeboxSeconds := 300 // default 5 min
+		if retro.LCTopicTimeboxSeconds != nil {
+			timeboxSeconds = *retro.LCTopicTimeboxSeconds
+		}
+		_ = h.timerService.StartTimer(ctx, retroID, timeboxSeconds)
+
+		_ = history // used for creating history entry
+	}
+
+	// For both retro and LC: broadcast the item change to sync all clients
+	// Get item index info for carousel sync
+	items, _ := h.retroService.ListItems(ctx, retroID)
+	itemIndex := 0
+	for i, item := range items {
+		if item.ID == itemID {
+			itemIndex = i
+			break
+		}
+	}
+
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
+		Type: "discuss_item_changed",
+		Payload: map[string]interface{}{
+			"itemId":     data.ItemID,
+			"itemIndex":  itemIndex,
+			"totalItems": len(items),
 		},
 	})
 }

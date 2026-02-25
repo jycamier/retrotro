@@ -1,20 +1,26 @@
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { teamsApi, retrosApi, templatesApi } from '../api/client'
-import { Plus, Play, Calendar, CheckCircle, Clock, Users, Star, BarChart3, LayoutGrid } from 'lucide-react'
-import type { Retrospective, Template, RotiResults } from '../types'
+import { Plus, Play, Calendar, CheckCircle, Clock, Users, Star, BarChart3, LayoutGrid, Coffee, MessageSquare } from 'lucide-react'
+import type { Retrospective, Template, RotiResults, SessionType } from '../types'
 
 export default function TeamPage() {
   const { teamId } = useParams<{ teamId: string }>()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newRetroName, setNewRetroName] = useState('')
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
+  const [sessionType, setSessionType] = useState<SessionType>('retro')
+  const [lcTopicTimebox, setLcTopicTimebox] = useState(5) // minutes
 
   const openCreateModal = () => {
     const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
     setNewRetroName(`Rétro du ${today}`)
+    setSessionType('retro')
+    setSelectedTemplateId('')
+    setLcTopicTimebox(5)
     setShowCreateModal(true)
   }
 
@@ -60,23 +66,40 @@ export default function TeamPage() {
   })
 
   const createRetroMutation = useMutation({
-    mutationFn: (data: { name: string; teamId: string; templateId: string }) =>
+    mutationFn: (data: { name: string; teamId: string; templateId?: string; sessionType?: SessionType; lcTopicTimeboxSeconds?: number }) =>
       retrosApi.create(data),
-    onSuccess: () => {
+    onSuccess: (retro: Retrospective) => {
       queryClient.invalidateQueries({ queryKey: ['retros', teamId] })
       setShowCreateModal(false)
       setNewRetroName('')
       setSelectedTemplateId('')
+      // Auto-start and navigate to the session for LC
+      if (retro.sessionType === 'lean_coffee') {
+        retrosApi.start(retro.id).then(() => {
+          navigate(`/leancoffee/${retro.id}`)
+        })
+      }
     },
   })
 
   const handleCreateRetro = (e: React.FormEvent) => {
     e.preventDefault()
-    if (newRetroName && selectedTemplateId && teamId) {
+    if (!newRetroName || !teamId) return
+
+    if (sessionType === 'lean_coffee') {
+      createRetroMutation.mutate({
+        name: newRetroName,
+        teamId,
+        sessionType: 'lean_coffee',
+        lcTopicTimeboxSeconds: lcTopicTimebox * 60,
+      })
+    } else {
+      if (!selectedTemplateId) return
       createRetroMutation.mutate({
         name: newRetroName,
         teamId,
         templateId: selectedTemplateId,
+        sessionType: 'retro',
       })
     }
   }
@@ -137,6 +160,13 @@ export default function TeamPage() {
           </div>
           <div className="flex items-center gap-3">
             <Link
+              to={`/teams/${teamId}/topics`}
+              className="flex items-center gap-2 px-4 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors"
+            >
+              <Coffee className="w-4 h-4" />
+              Sujets discutés
+            </Link>
+            <Link
               to={`/teams/${teamId}/actions`}
               className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             >
@@ -155,7 +185,7 @@ export default function TeamPage() {
               className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
             >
               <Plus className="w-4 h-4" />
-              New Retrospective
+              Nouvelle session
             </button>
           </div>
         </div>
@@ -173,17 +203,23 @@ export default function TeamPage() {
             {retros.map((retro: Retrospective) => (
               <Link
                 key={retro.id}
-                to={retro.status === 'active' ? `/retro/${retro.id}` : `/teams/${teamId}/retros/${retro.id}`}
+                to={retro.status === 'active'
+                  ? (retro.sessionType === 'lean_coffee' ? `/leancoffee/${retro.id}` : `/retro/${retro.id}`)
+                  : `/teams/${teamId}/retros/${retro.id}`}
                 className="block bg-white rounded-lg border border-gray-200 p-4 hover:border-primary-300 hover:shadow-md transition-all"
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    {getStatusIcon(retro.status)}
+                    {retro.sessionType === 'lean_coffee'
+                      ? <Coffee className="w-4 h-4 text-amber-500" />
+                      : getStatusIcon(retro.status)}
                     <div>
                       <h3 className="font-medium text-gray-900">{retro.name}</h3>
                       <p className="text-sm text-gray-500">
-                        {getStatusLabel(retro.status)} · Created{' '}
-                        {new Date(retro.createdAt).toLocaleDateString()}
+                        {retro.sessionType === 'lean_coffee' && (
+                          <span className="text-amber-600 font-medium">Lean Coffee · </span>
+                        )}
+                        {getStatusLabel(retro.status)} · {new Date(retro.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
@@ -213,71 +249,145 @@ export default function TeamPage() {
         ) : (
           <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
             <Calendar className="w-12 h-12 text-gray-400 mx-auto" />
-            <h3 className="mt-4 text-lg font-medium text-gray-900">No retrospectives yet</h3>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Aucune session</h3>
             <p className="mt-2 text-gray-600">
-              Create your first retrospective to get started
+              Créez votre première rétrospective ou lean coffee
             </p>
             <button
               onClick={openCreateModal}
               className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
             >
-              Create retrospective
+              Nouvelle session
             </button>
           </div>
         )}
       </div>
 
-      {/* Create Retro Modal */}
+      {/* Create Session Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-            <h2 className="text-lg font-semibold mb-4">Create New Retrospective</h2>
+            <h2 className="text-lg font-semibold mb-4">Nouvelle session</h2>
             <form onSubmit={handleCreateRetro} className="space-y-4">
+              {/* Session Type Selector */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Type de session
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSessionType('retro')
+                      const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+                      setNewRetroName(`Rétro du ${today}`)
+                    }}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${
+                      sessionType === 'retro'
+                        ? 'border-primary-500 bg-primary-50 text-primary-700'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                    }`}
+                  >
+                    <MessageSquare className="w-6 h-6" />
+                    <span className="font-medium text-sm">Rétrospective</span>
+                    <span className="text-xs text-center opacity-75">Brainstorm, grouper, voter, discuter</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSessionType('lean_coffee')
+                      const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+                      setNewRetroName(`Lean Coffee du ${today}`)
+                      setSelectedTemplateId('')
+                    }}
+                    className={`flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors ${
+                      sessionType === 'lean_coffee'
+                        ? 'border-amber-500 bg-amber-50 text-amber-700'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-600'
+                    }`}
+                  >
+                    <Coffee className="w-6 h-6" />
+                    <span className="font-medium text-sm">Lean Coffee</span>
+                    <span className="text-xs text-center opacity-75">Proposer, voter, discuter avec timebox</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Name
+                  Nom
                 </label>
                 <input
                   type="text"
                   value={newRetroName}
                   onChange={(e) => setNewRetroName(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  placeholder="Sprint 42 Retrospective"
+                  placeholder={sessionType === 'lean_coffee' ? 'Lean Coffee du 25 février' : 'Sprint 42 Retrospective'}
                   required
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Template
-                </label>
-                <select
-                  value={selectedTemplateId}
-                  onChange={(e) => setSelectedTemplateId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Select a template...</option>
-                  {templates?.map((template: Template) => (
-                    <option key={template.id} value={template.id}>
-                      {template.name} {template.isBuiltIn && '(Built-in)'}
-                    </option>
-                  ))}
-                </select>
-              </div>
+
+              {/* Template (retro only) */}
+              {sessionType === 'retro' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Template
+                  </label>
+                  <select
+                    value={selectedTemplateId}
+                    onChange={(e) => setSelectedTemplateId(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Choisir un template...</option>
+                    {templates?.map((template: Template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name} {template.isBuiltIn && '(Built-in)'}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Timebox (LC only) */}
+              {sessionType === 'lean_coffee' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Timebox par sujet (minutes)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={30}
+                    value={lcTopicTimebox}
+                    onChange={(e) => setLcTopicTimebox(Number(e.target.value))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Durée par défaut pour chaque sujet. Extensible avec le bouton +5 min.
+                  </p>
+                </div>
+              )}
+
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
                   className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg"
                 >
-                  Cancel
+                  Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={createRetroMutation.isPending}
-                  className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50"
+                  className={`px-4 py-2 text-white rounded-lg disabled:opacity-50 ${
+                    sessionType === 'lean_coffee'
+                      ? 'bg-amber-600 hover:bg-amber-700'
+                      : 'bg-primary-600 hover:bg-primary-700'
+                  }`}
                 >
-                  {createRetroMutation.isPending ? 'Creating...' : 'Create'}
+                  {createRetroMutation.isPending ? 'Création...' : 'Créer'}
                 </button>
               </div>
             </form>

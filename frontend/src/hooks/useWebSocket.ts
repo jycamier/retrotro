@@ -1,7 +1,8 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { useRetroStore } from '../store/retroStore'
-import type { WSMessage, Item, RetroPhase, IcebreakerMood, RotiResults, MoodWeather, TeamMemberStatus, DraftItem, Participant } from '../types'
+import { useLeanCoffeeStore } from '../store/leanCoffeeStore'
+import type { WSMessage, Item, RetroPhase, IcebreakerMood, RotiResults, MoodWeather, TeamMemberStatus, DraftItem, Participant, LCDiscussionState } from '../types'
 
 interface ExtendedRetroState {
   retro: import('../types').Retrospective
@@ -14,6 +15,7 @@ interface ExtendedRetroState {
   rotiResults: RotiResults | null
   teamMembers: TeamMemberStatus[] | null
   voteSummary: Record<string, Record<string, number>> | null
+  lcDiscussionState?: LCDiscussionState | null
 }
 
 const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`
@@ -216,6 +218,10 @@ export function useWebSocket(retroId: string | undefined) {
           const currentUserId = useAuthStore.getState().user?.id || ''
           retroStore.setVoteSummary(state.voteSummary, currentUserId)
         }
+        // Set LC discussion state if present
+        if (state.lcDiscussionState) {
+          useLeanCoffeeStore.getState().setDiscussionState(state.lcDiscussionState)
+        }
         break
       }
 
@@ -385,6 +391,27 @@ export function useWebSocket(retroId: string | undefined) {
       case 'draft_cleared': {
         const { userId, columnId } = payload as { userId: string; columnId: string }
         retroStore.clearDraft(userId, columnId)
+        break
+      }
+
+      // Lean Coffee messages
+      case 'discuss_item_changed': {
+        const { itemId } = payload as { itemId: string; itemIndex: number; totalItems: number }
+        // Sync retro carousel (for retro discuss phase)
+        retroStore.setSyncDiscussItemId(itemId)
+        // For LC sessions, also update the current topic
+        useLeanCoffeeStore.getState().setCurrentTopicId(itemId)
+        break
+      }
+
+      case 'lc_discussion_state': {
+        const lcState = payload as LCDiscussionState
+        useLeanCoffeeStore.getState().setDiscussionState(lcState)
+        break
+      }
+
+      case 'lc_all_topics_done': {
+        useLeanCoffeeStore.getState().setAllTopicsDone(true)
         break
       }
     }

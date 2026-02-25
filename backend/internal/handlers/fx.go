@@ -28,8 +28,8 @@ func NewAuthHandlerFx(authService *services.AuthService, cfg *config.Config, dev
 }
 
 // NewRetrospectiveHandlerFx creates the retrospective handler for fx
-func NewRetrospectiveHandlerFx(retroService *services.RetrospectiveService, timerService *services.TimerService) *RetrospectiveHandler {
-	return NewRetrospectiveHandler(retroService, timerService)
+func NewRetrospectiveHandlerFx(retroService *services.RetrospectiveService, timerService *services.TimerService, leanCoffeeService *services.LeanCoffeeService, analysisService *services.AnalysisService) *RetrospectiveHandler {
+	return NewRetrospectiveHandler(retroService, timerService, leanCoffeeService, analysisService)
 }
 
 // NewWebSocketHandlerFx creates the WebSocket handler for fx
@@ -39,10 +39,11 @@ func NewWebSocketHandlerFx(
 	retroService *services.RetrospectiveService,
 	timerService *services.TimerService,
 	authService *services.AuthService,
+	leanCoffeeService *services.LeanCoffeeService,
 	teamMemberRepo *postgres.TeamMemberRepository,
 	attendeeRepo *postgres.AttendeeRepository,
 ) *WebSocketHandler {
-	return NewWebSocketHandler(hub, bridge, retroService, timerService, authService, teamMemberRepo, attendeeRepo)
+	return NewWebSocketHandler(hub, bridge, retroService, timerService, authService, leanCoffeeService, teamMemberRepo, attendeeRepo)
 }
 
 // NewAdminHandlerFx creates the admin handler for fx

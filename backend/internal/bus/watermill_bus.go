@@ -223,7 +223,17 @@ func (b *WatermillBus) publishRoomMessage(roomID string, msg websocket.Message) 
 		return fmt.Errorf("marshal room envelope: %w", err)
 	}
 	wm := message.NewMessage(watermill.NewUUID(), data)
-	return b.pub.Publish(topicRoom, wm)
+	slog.Info("bus: publishing room message to NATS",
+		"roomId", roomID,
+		"podId", b.podID,
+		"msgType", msg.Type,
+		"topic", topicRoom,
+	)
+	err = b.pub.Publish(topicRoom, wm)
+	if err != nil {
+		slog.Error("bus: NATS publish failed", "err", err, "roomId", roomID)
+	}
+	return err
 }
 
 func (b *WatermillBus) publishPresence(env presenceMessage) error {
@@ -232,6 +242,13 @@ func (b *WatermillBus) publishPresence(env presenceMessage) error {
 		return fmt.Errorf("marshal presence envelope: %w", err)
 	}
 	wm := message.NewMessage(watermill.NewUUID(), data)
+	slog.Info("bus: publishing presence message to NATS",
+		"action", env.Action,
+		"roomId", env.RoomID,
+		"userId", env.UserID,
+		"podId", b.podID,
+		"topic", topicPresence,
+	)
 	return b.pub.Publish(topicPresence, wm)
 }
 
@@ -255,7 +272,14 @@ func (b *WatermillBus) consumeRoomMessages(ctx context.Context, msgs <-chan *mes
 			if env.PodID == b.podID {
 				continue
 			}
-			slog.Debug("bus: received remote room message", "roomId", env.RoomID, "podId", env.PodID)
+			localClients := b.hub.GetRoomClients(env.RoomID)
+			slog.Info("bus: received remote room message",
+				"roomId", env.RoomID,
+				"podId", env.PodID,
+				"localPodId", b.podID,
+				"localClientsInRoom", len(localClients),
+				"messageType", string(env.Message),
+			)
 			b.hub.BroadcastRaw(env.RoomID, env.Message)
 		}
 	}

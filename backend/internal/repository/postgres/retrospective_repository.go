@@ -55,6 +55,37 @@ func (r *TemplateRepository) FindByID(ctx context.Context, id uuid.UUID) (*model
 	return &template, nil
 }
 
+// FindBuiltInByName finds a built-in template by name
+func (r *TemplateRepository) FindBuiltInByName(ctx context.Context, name string) (*models.Template, error) {
+	query := `
+		SELECT id, name, description, columns, is_built_in, team_id, created_by, created_at
+		FROM templates WHERE name = $1 AND is_built_in = true
+		LIMIT 1
+	`
+
+	var template models.Template
+	var columnsJSON []byte
+	err := r.pool.QueryRow(ctx, query, name).Scan(
+		&template.ID, &template.Name, &template.Description, &columnsJSON,
+		&template.IsBuiltIn, &template.TeamID, &template.CreatedBy, &template.CreatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+
+	if err := json.Unmarshal(columnsJSON, &template.Columns); err != nil {
+		return nil, err
+	}
+
+	template.PhaseTimes, _ = r.GetPhaseTimers(ctx, template.ID)
+
+	return &template, nil
+}
+
 // ListBuiltIn lists all built-in templates
 func (r *TemplateRepository) ListBuiltIn(ctx context.Context) ([]*models.Template, error) {
 	query := `
@@ -197,7 +228,8 @@ func (r *RetrospectiveRepository) FindByID(ctx context.Context, id uuid.UUID) (*
 		       max_votes_per_user, max_votes_per_item, anonymous_voting, anonymous_items,
 		       allow_item_edit, allow_vote_change, phase_timer_overrides,
 		       timer_started_at, timer_duration_seconds, timer_paused_at, timer_remaining_seconds,
-		       scheduled_at, started_at, ended_at, created_at, updated_at
+		       scheduled_at, started_at, ended_at, created_at, updated_at,
+		       session_type, lc_current_topic_id, lc_topic_timebox_seconds
 		FROM retrospectives WHERE id = $1
 	`
 
@@ -210,6 +242,7 @@ func (r *RetrospectiveRepository) FindByID(ctx context.Context, id uuid.UUID) (*
 		&phaseTimerOverrides, &retro.TimerStartedAt, &retro.TimerDurationSeconds, &retro.TimerPausedAt,
 		&retro.TimerRemainingSeconds, &retro.ScheduledAt, &retro.StartedAt, &retro.EndedAt,
 		&retro.CreatedAt, &retro.UpdatedAt,
+		&retro.SessionType, &retro.LCCurrentTopicID, &retro.LCTopicTimeboxSeconds,
 	)
 
 	if err == nil && phaseTimerOverrides != nil {
@@ -233,7 +266,8 @@ func (r *RetrospectiveRepository) ListByTeam(ctx context.Context, teamID uuid.UU
 		       max_votes_per_user, max_votes_per_item, anonymous_voting, anonymous_items,
 		       allow_item_edit, allow_vote_change, phase_timer_overrides,
 		       timer_started_at, timer_duration_seconds, timer_paused_at, timer_remaining_seconds,
-		       scheduled_at, started_at, ended_at, created_at, updated_at
+		       scheduled_at, started_at, ended_at, created_at, updated_at,
+		       session_type, lc_current_topic_id, lc_topic_timebox_seconds
 		FROM retrospectives WHERE team_id = $1
 	`
 	args := []any{teamID}
@@ -262,6 +296,7 @@ func (r *RetrospectiveRepository) ListByTeam(ctx context.Context, teamID uuid.UU
 			&phaseTimerOverrides, &retro.TimerStartedAt, &retro.TimerDurationSeconds, &retro.TimerPausedAt,
 			&retro.TimerRemainingSeconds, &retro.ScheduledAt, &retro.StartedAt, &retro.EndedAt,
 			&retro.CreatedAt, &retro.UpdatedAt,
+			&retro.SessionType, &retro.LCCurrentTopicID, &retro.LCTopicTimeboxSeconds,
 		)
 		if err == nil && phaseTimerOverrides != nil {
 			_ = json.Unmarshal(phaseTimerOverrides, &retro.PhaseTimerOverrides)
@@ -281,8 +316,8 @@ func (r *RetrospectiveRepository) Create(ctx context.Context, retro *models.Retr
 		INSERT INTO retrospectives (id, name, team_id, template_id, facilitator_id, status,
 		                            current_phase, max_votes_per_user, max_votes_per_item, anonymous_voting,
 		                            anonymous_items, allow_item_edit, allow_vote_change, phase_timer_overrides,
-		                            scheduled_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		                            scheduled_at, session_type, lc_topic_timebox_seconds)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		RETURNING id, created_at, updated_at
 	`
 
@@ -295,6 +330,11 @@ func (r *RetrospectiveRepository) Create(ctx context.Context, retro *models.Retr
 		retro.MaxVotesPerItem = 3
 	}
 
+	// Default session type to retro
+	if retro.SessionType == "" {
+		retro.SessionType = models.SessionTypeRetro
+	}
+
 	var phaseTimerOverrides []byte
 	if retro.PhaseTimerOverrides != nil {
 		phaseTimerOverrides, _ = json.Marshal(retro.PhaseTimerOverrides)
@@ -304,7 +344,7 @@ func (r *RetrospectiveRepository) Create(ctx context.Context, retro *models.Retr
 		retro.ID, retro.Name, retro.TeamID, retro.TemplateID, retro.FacilitatorID,
 		retro.Status, retro.CurrentPhase, retro.MaxVotesPerUser, retro.MaxVotesPerItem, retro.AnonymousVoting,
 		retro.AnonymousItems, retro.AllowItemEdit, retro.AllowVoteChange, phaseTimerOverrides,
-		retro.ScheduledAt,
+		retro.ScheduledAt, retro.SessionType, retro.LCTopicTimeboxSeconds,
 	).Scan(&retro.ID, &retro.CreatedAt, &retro.UpdatedAt)
 
 	if err != nil {
@@ -321,7 +361,8 @@ func (r *RetrospectiveRepository) Update(ctx context.Context, retro *models.Retr
 		SET name = $2, status = $3, current_phase = $4, max_votes_per_user = $5,
 		    max_votes_per_item = $6, anonymous_voting = $7, anonymous_items = $8,
 		    allow_item_edit = $9, allow_vote_change = $10, phase_timer_overrides = $11,
-		    facilitator_id = $12, started_at = $13, ended_at = $14, updated_at = NOW()
+		    facilitator_id = $12, started_at = $13, ended_at = $14,
+		    lc_current_topic_id = $15, updated_at = NOW()
 		WHERE id = $1
 	`
 
@@ -335,6 +376,7 @@ func (r *RetrospectiveRepository) Update(ctx context.Context, retro *models.Retr
 		retro.MaxVotesPerUser, retro.MaxVotesPerItem, retro.AnonymousVoting, retro.AnonymousItems,
 		retro.AllowItemEdit, retro.AllowVoteChange, phaseTimerOverrides, retro.FacilitatorID,
 		retro.StartedAt, retro.EndedAt,
+		retro.LCCurrentTopicID,
 	)
 	return err
 }

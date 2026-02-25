@@ -28,6 +28,7 @@ var Module = fx.Module("repository",
 		NewAttendeeRepository,
 		NewWebhookRepository,
 		NewWebhookDeliveryRepository,
+		NewLCTopicHistoryRepository,
 	),
 )
 

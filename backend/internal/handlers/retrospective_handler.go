@@ -16,31 +16,37 @@ import (
 
 // RetrospectiveHandler handles retrospective endpoints
 type RetrospectiveHandler struct {
-	retroService *services.RetrospectiveService
-	timerService *services.TimerService
+	retroService      *services.RetrospectiveService
+	timerService      *services.TimerService
+	leanCoffeeService *services.LeanCoffeeService
+	analysisService   *services.AnalysisService
 }
 
 // NewRetrospectiveHandler creates a new retrospective handler
-func NewRetrospectiveHandler(retroService *services.RetrospectiveService, timerService *services.TimerService) *RetrospectiveHandler {
+func NewRetrospectiveHandler(retroService *services.RetrospectiveService, timerService *services.TimerService, leanCoffeeService *services.LeanCoffeeService, analysisService *services.AnalysisService) *RetrospectiveHandler {
 	return &RetrospectiveHandler{
-		retroService: retroService,
-		timerService: timerService,
+		retroService:      retroService,
+		timerService:      timerService,
+		leanCoffeeService: leanCoffeeService,
+		analysisService:   analysisService,
 	}
 }
 
 // CreateRetroRequest represents a create retrospective request
 type CreateRetroRequest struct {
-	Name                string                    `json:"name"`
-	TeamID              uuid.UUID                 `json:"teamId"`
-	TemplateID          uuid.UUID                 `json:"templateId"`
-	MaxVotesPerUser     int                       `json:"maxVotesPerUser"`
-	MaxVotesPerItem     int                       `json:"maxVotesPerItem"`
-	AnonymousVoting     bool                      `json:"anonymousVoting"`
-	AnonymousItems      bool                      `json:"anonymousItems"`
-	AllowItemEdit       *bool                     `json:"allowItemEdit"`
-	AllowVoteChange     *bool                     `json:"allowVoteChange"`
-	PhaseTimerOverrides map[models.RetroPhase]int `json:"phaseTimerOverrides"`
-	ScheduledAt         *time.Time                `json:"scheduledAt"`
+	Name                  string                    `json:"name"`
+	TeamID                uuid.UUID                 `json:"teamId"`
+	TemplateID            uuid.UUID                 `json:"templateId"`
+	SessionType           models.SessionType        `json:"sessionType"`
+	MaxVotesPerUser       int                       `json:"maxVotesPerUser"`
+	MaxVotesPerItem       int                       `json:"maxVotesPerItem"`
+	AnonymousVoting       bool                      `json:"anonymousVoting"`
+	AnonymousItems        bool                      `json:"anonymousItems"`
+	AllowItemEdit         *bool                     `json:"allowItemEdit"`
+	AllowVoteChange       *bool                     `json:"allowVoteChange"`
+	PhaseTimerOverrides   map[models.RetroPhase]int `json:"phaseTimerOverrides"`
+	ScheduledAt           *time.Time                `json:"scheduledAt"`
+	LCTopicTimeboxSeconds *int                      `json:"lcTopicTimeboxSeconds"`
 }
 
 // Create creates a new retrospective
@@ -54,23 +60,30 @@ func (h *RetrospectiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Name == "" || req.TeamID == uuid.Nil || req.TemplateID == uuid.Nil {
-		http.Error(w, `{"error": "name, teamId, and templateId are required"}`, http.StatusBadRequest)
+	// For lean coffee, templateId is optional (we use the built-in LC template)
+	if req.Name == "" || req.TeamID == uuid.Nil {
+		http.Error(w, `{"error": "name and teamId are required"}`, http.StatusBadRequest)
+		return
+	}
+	if req.SessionType != models.SessionTypeLeanCoffee && req.TemplateID == uuid.Nil {
+		http.Error(w, `{"error": "templateId is required for retrospectives"}`, http.StatusBadRequest)
 		return
 	}
 
 	retro, err := h.retroService.Create(ctx, userID, services.CreateRetroInput{
-		Name:                req.Name,
-		TeamID:              req.TeamID,
-		TemplateID:          req.TemplateID,
-		MaxVotesPerUser:     req.MaxVotesPerUser,
-		MaxVotesPerItem:     req.MaxVotesPerItem,
-		AnonymousVoting:     req.AnonymousVoting,
-		AnonymousItems:      req.AnonymousItems,
-		AllowItemEdit:       req.AllowItemEdit,
-		AllowVoteChange:     req.AllowVoteChange,
-		PhaseTimerOverrides: req.PhaseTimerOverrides,
-		ScheduledAt:         req.ScheduledAt,
+		Name:                  req.Name,
+		TeamID:                req.TeamID,
+		TemplateID:            req.TemplateID,
+		SessionType:           req.SessionType,
+		MaxVotesPerUser:       req.MaxVotesPerUser,
+		MaxVotesPerItem:       req.MaxVotesPerItem,
+		AnonymousVoting:       req.AnonymousVoting,
+		AnonymousItems:        req.AnonymousItems,
+		AllowItemEdit:         req.AllowItemEdit,
+		AllowVoteChange:       req.AllowVoteChange,
+		PhaseTimerOverrides:   req.PhaseTimerOverrides,
+		ScheduledAt:           req.ScheduledAt,
+		LCTopicTimeboxSeconds: req.LCTopicTimeboxSeconds,
 	})
 	if err != nil {
 		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
@@ -871,6 +884,50 @@ func (h *RetrospectiveHandler) PatchTeamAction(w http.ResponseWriter, r *http.Re
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(action)
+}
+
+// ListTeamTopics lists all discussed topics from Lean Coffee sessions for a team
+func (h *RetrospectiveHandler) ListTeamTopics(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	teamID, err := uuid.Parse(chi.URLParam(r, "teamId"))
+	if err != nil {
+		http.Error(w, `{"error": "invalid team ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	topics, err := h.leanCoffeeService.ListTopicsByTeam(ctx, teamID)
+	if err != nil {
+		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	if topics == nil {
+		topics = []*models.DiscussedTopic{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(topics)
+}
+
+// AnalyzeTeamTopics analyzes and categorizes discussed topics for a team
+func (h *RetrospectiveHandler) AnalyzeTeamTopics(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	teamID, err := uuid.Parse(chi.URLParam(r, "teamId"))
+	if err != nil {
+		http.Error(w, `{"error": "invalid team ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	analysis, err := h.analysisService.AnalyzeTopics(ctx, teamID)
+	if err != nil {
+		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(analysis)
 }
 
 // GetIcebreakerMoods returns icebreaker moods for a retrospective

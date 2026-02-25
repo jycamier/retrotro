@@ -123,6 +123,7 @@ export const teamsApi = {
   getActions: (teamId: string) => api.get<ActionItem[]>(`/teams/${teamId}/actions`),
   patchAction: (teamId: string, actionId: string, data: { status?: string; assigneeId?: string | null; description?: string }) =>
     api.patch<ActionItem>(`/teams/${teamId}/actions/${actionId}`, data),
+  getTopics: (teamId: string) => api.get<DiscussedTopic[]>(`/teams/${teamId}/topics`),
 }
 
 export const templatesApi = {
@@ -138,7 +139,9 @@ export const retrosApi = {
   create: (data: {
     name: string
     teamId: string
-    templateId: string
+    templateId?: string
+    sessionType?: 'retro' | 'lean_coffee'
+    lcTopicTimeboxSeconds?: number
     maxVotesPerUser?: number
     anonymousVoting?: boolean
   }) => api.post<Retrospective>('/retrospectives', data),
@@ -240,4 +243,4 @@ export const authApi = {
 }
 
 // Import types
-import type { Team, TeamMember, TeamWithMemberCount, Template, Retrospective, Item, ActionItem, User, RotiResults, IcebreakerMood, TeamRotiStats, TeamMoodStats, UserRotiStats, UserMoodStats, CombinedUserStats, DevUsersResponse } from '../types'
+import type { Team, TeamMember, TeamWithMemberCount, Template, Retrospective, Item, ActionItem, User, RotiResults, IcebreakerMood, TeamRotiStats, TeamMoodStats, UserRotiStats, UserMoodStats, CombinedUserStats, DevUsersResponse, DiscussedTopic } from '../types'
