@@ -55,6 +55,37 @@ func (r *TemplateRepository) FindByID(ctx context.Context, id uuid.UUID) (*model
 	return &template, nil
 }
 
+// FindBuiltInByName finds a built-in template by name
+func (r *TemplateRepository) FindBuiltInByName(ctx context.Context, name string) (*models.Template, error) {
+	query := `
+		SELECT id, name, description, columns, is_built_in, team_id, created_by, created_at
+		FROM templates WHERE name = $1 AND is_built_in = true
+		LIMIT 1
+	`
+
+	var template models.Template
+	var columnsJSON []byte
+	err := r.pool.QueryRow(ctx, query, name).Scan(
+		&template.ID, &template.Name, &template.Description, &columnsJSON,
+		&template.IsBuiltIn, &template.TeamID, &template.CreatedBy, &template.CreatedAt,
+	)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotFound
+		}
+		return nil, err
+	}
+
+	if err := json.Unmarshal(columnsJSON, &template.Columns); err != nil {
+		return nil, err
+	}
+
+	template.PhaseTimes, _ = r.GetPhaseTimers(ctx, template.ID)
+
+	return &template, nil
+}
+
 // ListBuiltIn lists all built-in templates
 func (r *TemplateRepository) ListBuiltIn(ctx context.Context) ([]*models.Template, error) {
 	query := `

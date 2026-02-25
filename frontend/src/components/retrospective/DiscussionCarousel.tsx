@@ -41,17 +41,6 @@ export default function DiscussionCarousel({
   const [newActionAssignee, setNewActionAssignee] = useState('')
   const [newActionDueDate, setNewActionDueDate] = useState('')
 
-  // Sync carousel when an external syncItemId is received (from discuss_item_changed)
-  useEffect(() => {
-    if (!syncItemId) return
-    const idx = discussionItems.findIndex(item => item.id === syncItemId)
-    if (idx >= 0 && idx !== localIndex) {
-      setLocalIndex(idx)
-    }
-  }, [syncItemId, discussionItems])
-
-  const currentIndex = localIndex
-
   // Get top-level items (not grouped under another item), sorted by votes
   const discussionItems = useMemo(() => {
     const topLevelItems = items.filter(item => !item.groupId)
@@ -63,6 +52,17 @@ export default function DiscussionCarousel({
       return bTotalVotes - aTotalVotes
     })
   }, [items])
+
+  // Sync carousel when an external syncItemId is received (from discuss_item_changed)
+  useEffect(() => {
+    if (!syncItemId) return
+    const idx = discussionItems.findIndex(item => item.id === syncItemId)
+    if (idx >= 0 && idx !== localIndex) {
+      setLocalIndex(idx)
+    }
+  }, [syncItemId, discussionItems, localIndex])
+
+  const currentIndex = localIndex
 
   const getGroupedItems = (parentId: string): Item[] => {
     return items.filter(item => item.groupId === parentId)

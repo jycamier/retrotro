@@ -316,6 +316,7 @@ export interface DiscussedTopic {
   sessionId: string
   sessionName: string
   discussedAt: string
+  discussionOrder: number
   totalDiscussionSeconds: number
   extensionCount: number
 }

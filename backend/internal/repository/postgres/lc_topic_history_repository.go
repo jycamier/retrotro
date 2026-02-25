@@ -133,7 +133,7 @@ func (r *LCTopicHistoryRepository) ListByTeam(ctx context.Context, teamID uuid.U
 	query := `
 		SELECT lth.id, i.content, i.author_id, COALESCE(u.display_name, '') as author_name,
 		       r.id as session_id, r.name as session_name,
-		       lth.started_at as discussed_at,
+		       lth.started_at as discussed_at, lth.discussion_order,
 		       lth.total_discussion_seconds, lth.extension_count
 		FROM lc_topic_history lth
 		JOIN items i ON i.id = lth.topic_id
@@ -156,7 +156,7 @@ func (r *LCTopicHistoryRepository) ListByTeam(ctx context.Context, teamID uuid.U
 		err := rows.Scan(
 			&t.ID, &t.Content, &t.AuthorID, &authorName,
 			&t.SessionID, &t.SessionName,
-			&t.DiscussedAt,
+			&t.DiscussedAt, &t.DiscussionOrder,
 			&t.TotalDiscussionSeconds, &t.ExtensionCount,
 		)
 		if err != nil {

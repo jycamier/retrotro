@@ -878,6 +878,17 @@ func (h *WebSocketHandler) handlePhaseNext(client *ws.Client) {
 		},
 	})
 
+	// For LC sessions entering discuss phase, broadcast the initial discussion state
+	if retro.SessionType == models.SessionTypeLeanCoffee && nextPhase == models.PhaseDiscuss {
+		lcState, err := h.leanCoffeeService.GetDiscussionState(ctx, retroID)
+		if err == nil {
+			h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
+				Type:    "lc_discussion_state",
+				Payload: lcState,
+			})
+		}
+	}
+
 	// Auto-start timer for the new phase if configured
 	h.autoStartPhaseTimer(ctx, retroID, retro.TemplateID, nextPhase)
 }

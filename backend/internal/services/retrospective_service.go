@@ -76,13 +76,22 @@ type CreateRetroInput struct {
 
 // Create creates a new retrospective
 func (s *RetrospectiveService) Create(ctx context.Context, facilitatorID uuid.UUID, input CreateRetroInput) (*models.Retrospective, error) {
-	// Verify template exists
-	_, err := s.templateRepo.FindByID(ctx, input.TemplateID)
-	if err != nil {
-		if errors.Is(err, postgres.ErrNotFound) {
-			return nil, ErrTemplateNotFound
+	// For Lean Coffee sessions, use the built-in LC template if no template specified
+	if input.SessionType == models.SessionTypeLeanCoffee && input.TemplateID == uuid.Nil {
+		lcTemplate, err := s.templateRepo.FindBuiltInByName(ctx, "Lean Coffee")
+		if err != nil {
+			return nil, errors.New("lean coffee template not found")
 		}
-		return nil, err
+		input.TemplateID = lcTemplate.ID
+	} else {
+		// Verify template exists
+		_, err := s.templateRepo.FindByID(ctx, input.TemplateID)
+		if err != nil {
+			if errors.Is(err, postgres.ErrNotFound) {
+				return nil, ErrTemplateNotFound
+			}
+			return nil, err
+		}
 	}
 
 	maxVotes := input.MaxVotesPerUser
@@ -112,6 +121,12 @@ func (s *RetrospectiveService) Create(ctx context.Context, facilitatorID uuid.UU
 		sessionType = models.SessionTypeRetro
 	}
 
+	// Set initial phase based on session type
+	initialPhase := models.PhaseBrainstorm
+	if sessionType == models.SessionTypeLeanCoffee {
+		initialPhase = models.PhaseWaiting
+	}
+
 	retro := &models.Retrospective{
 		ID:                    uuid.New(),
 		Name:                  input.Name,
@@ -119,7 +134,7 @@ func (s *RetrospectiveService) Create(ctx context.Context, facilitatorID uuid.UU
 		TemplateID:            input.TemplateID,
 		FacilitatorID:         facilitatorID,
 		Status:                models.StatusDraft,
-		CurrentPhase:          models.PhaseBrainstorm,
+		CurrentPhase:          initialPhase,
 		MaxVotesPerUser:       maxVotes,
 		MaxVotesPerItem:       maxVotesPerItem,
 		AnonymousVoting:       input.AnonymousVoting,

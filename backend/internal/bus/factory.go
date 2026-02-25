@@ -8,7 +8,6 @@ import (
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
-	watermillnats "github.com/ThreeDotsLabs/watermill-nats/v2/pkg/nats"
 	watermillsql "github.com/ThreeDotsLabs/watermill-sql/v3/pkg/sql"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
@@ -26,6 +25,50 @@ var Module = fx.Module("bus",
 
 // NewMessageBusFx creates a MessageBus and registers lifecycle hooks with fx.
 func NewMessageBusFx(lc fx.Lifecycle, hub *websocket.Hub, pool *pgxpool.Pool, cfg *config.Config) (MessageBus, error) {
+	switch cfg.BusType {
+	case "nats":
+		return newNATSBus(lc, hub, cfg)
+	default:
+		return newWatermillBus(lc, hub, pool, cfg)
+	}
+}
+
+// newNATSBus creates a NATSDirectBus using native NATS connections.
+func newNATSBus(lc fx.Lifecycle, hub *websocket.Hub, cfg *config.Config) (MessageBus, error) {
+	if cfg.NatsURL == "" {
+		return nil, fmt.Errorf("bus: BusType is \"nats\" but NatsURL is empty")
+	}
+
+	slog.Info("bus: connecting to NATS (direct)", "url", cfg.NatsURL)
+
+	var natsOpts []nats.Option
+	if cfg.NatsCredentials != "" {
+		natsOpts = append(natsOpts, nats.UserCredentials(cfg.NatsCredentials))
+	}
+
+	conn, err := nats.Connect(cfg.NatsURL, natsOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("bus: connect to NATS: %w", err)
+	}
+
+	bus := NewNATSDirectBus(hub, conn)
+
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			return bus.Start(ctx)
+		},
+		OnStop: func(_ context.Context) error {
+			bus.Stop()
+			return nil
+		},
+	})
+
+	slog.Info("bus: NATS direct bus created successfully")
+	return bus, nil
+}
+
+// newWatermillBus creates a WatermillBus for gochannel or sql backends.
+func newWatermillBus(lc fx.Lifecycle, hub *websocket.Hub, pool *pgxpool.Pool, cfg *config.Config) (MessageBus, error) {
 	logger := watermill.NewSlogLogger(slog.Default())
 
 	pub, sub, err := createPubSub(cfg, pool, logger)
@@ -48,7 +91,7 @@ func NewMessageBusFx(lc fx.Lifecycle, hub *websocket.Hub, pool *pgxpool.Pool, cf
 	return bus, nil
 }
 
-// createPubSub builds the Watermill Publisher and Subscriber according to cfg.BusType.
+// createPubSub builds the Watermill Publisher and Subscriber for non-NATS backends.
 func createPubSub(cfg *config.Config, pool *pgxpool.Pool, logger watermill.LoggerAdapter) (message.Publisher, message.Subscriber, error) {
 	switch cfg.BusType {
 	case "gochannel", "":
@@ -57,50 +100,6 @@ func createPubSub(cfg *config.Config, pool *pgxpool.Pool, logger watermill.Logge
 			logger,
 		)
 		return ch, ch, nil
-
-	case "nats":
-		if cfg.NatsURL == "" {
-			return nil, nil, fmt.Errorf("bus: BusType is \"nats\" but NatsURL is empty")
-		}
-
-		slog.Info("bus: connecting to NATS", "url", cfg.NatsURL, "credentials", cfg.NatsCredentials != "")
-
-		var natsOpts []nats.Option
-		if cfg.NatsCredentials != "" {
-			natsOpts = append(natsOpts, nats.UserCredentials(cfg.NatsCredentials))
-		}
-
-		jsDisabled := watermillnats.JetStreamConfig{Disabled: true}
-
-		pub, err := watermillnats.NewPublisher(
-			watermillnats.PublisherConfig{
-				URL:         cfg.NatsURL,
-				NatsOptions: natsOpts,
-				JetStream:   jsDisabled,
-			},
-			logger,
-		)
-		if err != nil {
-			slog.Error("bus: failed to create NATS publisher", "url", cfg.NatsURL, "error", err)
-			return nil, nil, fmt.Errorf("bus: create nats publisher: %w", err)
-		}
-
-		sub, err := watermillnats.NewSubscriber(
-			watermillnats.SubscriberConfig{
-				URL:         cfg.NatsURL,
-				NatsOptions: natsOpts,
-				JetStream:   jsDisabled,
-			},
-			logger,
-		)
-		if err != nil {
-			slog.Error("bus: failed to create NATS subscriber", "url", cfg.NatsURL, "error", err)
-			_ = pub.Close()
-			return nil, nil, fmt.Errorf("bus: create nats subscriber: %w", err)
-		}
-
-		slog.Info("bus: NATS publisher and subscriber created successfully")
-		return pub, sub, nil
 
 	case "sql":
 		if pool == nil {

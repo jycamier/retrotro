@@ -420,6 +420,7 @@ type DiscussedTopic struct {
 	SessionID              uuid.UUID `json:"sessionId"`
 	SessionName            string    `json:"sessionName"`
 	DiscussedAt            time.Time `json:"discussedAt"`
+	DiscussionOrder        int       `json:"discussionOrder"`
 	TotalDiscussionSeconds int       `json:"totalDiscussionSeconds"`
 	ExtensionCount         int       `json:"extensionCount"`
 }

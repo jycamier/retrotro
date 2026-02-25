@@ -1,11 +1,10 @@
 import { useState, useMemo } from 'react'
 import { useLeanCoffeeStore } from '../../store/leanCoffeeStore'
 import { useRetroStore } from '../../store/retroStore'
-import { useAuthStore } from '../../store/authStore'
 import PhaseTimer from '../retrospective/PhaseTimer'
-import { SkipForward, Plus, Check, Trash2, User, Calendar, ThumbsUp, MessageSquare, Clock, CheckCircle2, ListChecks, ArrowRight } from 'lucide-react'
+import { SkipForward, Plus, Check, Trash2, User, ThumbsUp, MessageSquare, Clock, CheckCircle2, ListChecks, ArrowRight } from 'lucide-react'
 import clsx from 'clsx'
-import type { ActionItem, Item, Participant } from '../../types'
+import type { ActionItem, Participant } from '../../types'
 
 interface LCDiscussPhaseViewProps {
   send: (type: string, payload: Record<string, unknown>) => void
@@ -16,8 +15,7 @@ interface LCDiscussPhaseViewProps {
 
 export default function LCDiscussPhaseView({ send, isFacilitator, actions, participants }: LCDiscussPhaseViewProps) {
   const { currentTopicId, queue, done, topicHistory, allTopicsDone } = useLeanCoffeeStore()
-  const { items, retro } = useRetroStore()
-  const { user } = useAuthStore()
+  const { items } = useRetroStore()
   const [newActionTitle, setNewActionTitle] = useState('')
   const [newActionAssignee, setNewActionAssignee] = useState('')
 

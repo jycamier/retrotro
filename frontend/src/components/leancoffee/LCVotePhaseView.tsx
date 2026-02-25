@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import { useRetroStore } from '../../store/retroStore'
-import { useAuthStore } from '../../store/authStore'
 import { ThumbsUp } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -11,7 +10,6 @@ interface LCVotePhaseViewProps {
 
 export default function LCVotePhaseView({ send, isFacilitator }: LCVotePhaseViewProps) {
   const { items, retro, myVotesOnItems } = useRetroStore()
-  const { user } = useAuthStore()
 
   const topics = useMemo(() => {
     const topLevel = items.filter(item => !item.groupId)

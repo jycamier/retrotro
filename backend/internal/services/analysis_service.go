@@ -51,8 +51,7 @@ func (s *AnalysisService) AnalyzeTopics(ctx context.Context, teamID uuid.UUID) (
 		"Autre":        {},
 	}
 
-	for i := range topics {
-		topic := &topics[i]
+	for _, topic := range topics {
 		categories["Autre"] = append(categories["Autre"], topic)
 	}
 

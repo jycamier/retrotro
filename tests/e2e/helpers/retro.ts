@@ -10,13 +10,15 @@ export async function createTeamAndRetro(page: Page): Promise<string> {
   await page.waitForURL(/\/teams\//);
 
   // Create retro
-  await page.getByRole('button', { name: /New Retrospective/i }).click();
+  await page.getByRole('button', { name: /Nouvelle session/i }).first().click();
+  // Session type defaults to "retro" — just fill in the form
   const retroName = `E2E Retro ${Date.now()}`;
-  await page.getByPlaceholder('Sprint 42 Retrospective').fill(retroName);
+  await page.locator('input[type="text"]').first().clear();
+  await page.locator('input[type="text"]').first().fill(retroName);
   // Select first available template
   const templateSelect = page.locator('select');
   await templateSelect.selectOption({ index: 1 });
-  await page.getByRole('button', { name: /^Create$/i }).click();
+  await page.getByRole('button', { name: /^Créer$/i }).click();
   await page.waitForTimeout(1_000);
 
   // Navigate to the retro detail page
@@ -26,6 +28,40 @@ export async function createTeamAndRetro(page: Page): Promise<string> {
   // Start the retro — this navigates directly to the retro board
   await page.getByRole('button', { name: /Démarrer la Retro/i }).click();
   await page.waitForURL(/\/retro\//, { timeout: 10_000 });
+  await page.waitForTimeout(2_000);
+
+  return page.url();
+}
+
+/**
+ * Create a Lean Coffee session from the Dev Team page.
+ * The LC is auto-started and navigates directly to the board.
+ * Returns the lean coffee board URL.
+ */
+export async function createLeanCoffee(page: Page): Promise<string> {
+  // Navigate to the existing Dev Team
+  await page.getByText('Dev Team').click();
+  await page.waitForURL(/\/teams\//);
+
+  // Open creation modal
+  await page.getByRole('button', { name: /Nouvelle session/i }).first().click();
+
+  // Select Lean Coffee type (use the button, not the template option in the select)
+  await page.getByRole('button', { name: /Lean Coffee/i }).click();
+
+  // Fill name
+  const lcName = `E2E LC ${Date.now()}`;
+  await page.locator('input[type="text"]').first().clear();
+  await page.locator('input[type="text"]').first().fill(lcName);
+
+  // Set timebox to 2 min for faster tests
+  const timeboxInput = page.locator('input[type="number"]');
+  await timeboxInput.clear();
+  await timeboxInput.fill('2');
+
+  // Create — LC auto-starts and navigates
+  await page.getByRole('button', { name: /^Créer$/i }).click();
+  await page.waitForURL(/\/leancoffee\//, { timeout: 15_000 });
   await page.waitForTimeout(2_000);
 
   return page.url();
@@ -45,8 +81,10 @@ export async function joinRetro(page: Page, retroUrl: string): Promise<void> {
 export async function waitForParticipantCount(page: Page, count: number): Promise<void> {
   await expect(async () => {
     const text = await page.textContent('body');
-    // Matches both "3/6 participants connectés" (waiting room) and "Participants (3)" (board)
-    const hasCount = text?.includes(`${count}/`) || text?.includes(`(${count})`);
+    // Normalize whitespace to single spaces for easier matching
+    const normalized = text?.replace(/\s+/g, ' ') || '';
+    // Matches "3 / 6" (waiting room), "3/6", "(3)" (board header)
+    const hasCount = normalized.includes(`${count} /`) || normalized.includes(`${count}/`) || normalized.includes(`(${count})`);
     expect(hasCount).toBeTruthy();
   }).toPass({ timeout: 15_000 });
 }
