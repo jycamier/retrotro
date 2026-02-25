@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { teamsApi, retrosApi, templatesApi } from '../api/client'
-import { Plus, Play, Calendar, CheckCircle, Clock, Users, Star, BarChart3, LayoutGrid } from 'lucide-react'
-import type { Retrospective, Template, RotiResults } from '../types'
+import { Plus, Play, Calendar, CheckCircle, Clock, Users, Star, BarChart3, LayoutGrid, Coffee, MessageSquare } from 'lucide-react'
+import type { Retrospective, Template, RotiResults, SessionType } from '../types'
 
 export default function TeamPage() {
   const { teamId } = useParams<{ teamId: string }>()
