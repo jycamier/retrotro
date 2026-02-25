@@ -76,11 +76,19 @@ export default function DiscussionCarousel({
     : []
 
   const goToPrevious = () => {
-    setCurrentIndex(prev => (prev > 0 ? prev - 1 : totalItems - 1))
+    const newIndex = currentIndex > 0 ? currentIndex - 1 : totalItems - 1
+    if (isFacilitator && discussionItems[newIndex]) {
+      send('discuss_set_item', { itemId: discussionItems[newIndex].id })
+    }
+    setLocalIndex(newIndex)
   }
 
   const goToNext = () => {
-    setCurrentIndex(prev => (prev < totalItems - 1 ? prev + 1 : 0))
+    const newIndex = currentIndex < totalItems - 1 ? currentIndex + 1 : 0
+    if (isFacilitator && discussionItems[newIndex]) {
+      send('discuss_set_item', { itemId: discussionItems[newIndex].id })
+    }
+    setLocalIndex(newIndex)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
