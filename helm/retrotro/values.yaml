@@ -23,6 +23,9 @@ backend:
     maxReplicas: 10
     targetCPUUtilizationPercentage: 80
   corsOrigins: http://localhost:3000
+  bus:
+    type: gochannel
+    natsUrl: ""
   env:
     PORT: '8080'
   envFromSecrets: []

@@ -102,6 +102,12 @@ spec:
             - name: OIDC_JIT_FACILITATOR_GROUPS
               value: {{ .Values.oidc.jit.facilitatorGroups | join "," | quote }}
             {{- end }}
+            - name: BUS_TYPE
+              value: {{ .Values.backend.bus.type | quote }}
+            {{- if .Values.backend.bus.natsUrl }}
+            - name: NATS_URL
+              value: {{ .Values.backend.bus.natsUrl | quote }}
+            {{- end }}
             {{- range .Values.backend.envFromSecrets }}
             - name: {{ .key }}
               valueFrom:
