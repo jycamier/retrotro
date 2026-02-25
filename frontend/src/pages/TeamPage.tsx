@@ -238,15 +238,15 @@ export default function TeamPage() {
         ) : (
           <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
             <Calendar className="w-12 h-12 text-gray-400 mx-auto" />
-            <h3 className="mt-4 text-lg font-medium text-gray-900">No retrospectives yet</h3>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">Aucune session</h3>
             <p className="mt-2 text-gray-600">
-              Create your first retrospective to get started
+              Créez votre première rétrospective ou lean coffee
             </p>
             <button
               onClick={openCreateModal}
               className="mt-4 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"
             >
-              Create retrospective
+              Nouvelle session
             </button>
           </div>
         )}
