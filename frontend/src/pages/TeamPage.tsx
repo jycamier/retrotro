@@ -196,7 +196,9 @@ export default function TeamPage() {
             {retros.map((retro: Retrospective) => (
               <Link
                 key={retro.id}
-                to={retro.status === 'active' ? `/retro/${retro.id}` : `/teams/${teamId}/retros/${retro.id}`}
+                to={retro.status === 'active'
+                  ? (retro.sessionType === 'lean_coffee' ? `/leancoffee/${retro.id}` : `/retro/${retro.id}`)
+                  : `/teams/${teamId}/retros/${retro.id}`}
                 className="block bg-white rounded-lg border border-gray-200 p-4 hover:border-primary-300 hover:shadow-md transition-all"
               >
                 <div className="flex items-center justify-between">
