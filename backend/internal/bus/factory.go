@@ -12,6 +12,7 @@ import (
 	watermillsql "github.com/ThreeDotsLabs/watermill-sql/v3/pkg/sql"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/nats-io/nats.go"
 	"go.uber.org/fx"
 
 	"github.com/jycamier/retrotro/backend/internal/config"
@@ -62,9 +63,15 @@ func createPubSub(cfg *config.Config, pool *pgxpool.Pool, logger watermill.Logge
 			return nil, nil, fmt.Errorf("bus: BusType is \"nats\" but NatsURL is empty")
 		}
 
+		var natsOpts []nats.Option
+		if cfg.NatsCredentials != "" {
+			natsOpts = append(natsOpts, nats.UserCredentials(cfg.NatsCredentials))
+		}
+
 		pub, err := watermillnats.NewPublisher(
 			watermillnats.PublisherConfig{
-				URL: cfg.NatsURL,
+				URL:         cfg.NatsURL,
+				NatsOptions: natsOpts,
 			},
 			logger,
 		)
@@ -74,7 +81,8 @@ func createPubSub(cfg *config.Config, pool *pgxpool.Pool, logger watermill.Logge
 
 		sub, err := watermillnats.NewSubscriber(
 			watermillnats.SubscriberConfig{
-				URL: cfg.NatsURL,
+				URL:         cfg.NatsURL,
+				NatsOptions: natsOpts,
 			},
 			logger,
 		)

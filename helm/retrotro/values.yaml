@@ -26,6 +26,10 @@ backend:
   bus:
     type: gochannel
     natsUrl: ""
+    natsCredentials:
+      content: ""
+      existingSecret: ""
+      existingSecretKey: nats-credentials
   env:
     PORT: '8080'
   envFromSecrets: []

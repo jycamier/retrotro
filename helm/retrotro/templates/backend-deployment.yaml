@@ -109,6 +109,10 @@ spec:
             - name: NATS_URL
               value: {{ .Values.backend.bus.natsUrl | quote }}
             {{- end }}
+            {{- if or .Values.backend.bus.natsCredentials.content .Values.backend.bus.natsCredentials.existingSecret }}
+            - name: NATS_CREDENTIALS
+              value: "/etc/nats/credentials.creds"
+            {{- end }}
             {{- range .Values.backend.envFromSecrets }}
             - name: {{ .key }}
               valueFrom:
@@ -116,6 +120,25 @@ spec:
                   name: {{ .secretName }}
                   key: {{ .key }}
             {{- end }}
+          {{- if or .Values.backend.bus.natsCredentials.content .Values.backend.bus.natsCredentials.existingSecret }}
+          volumeMounts:
+            - name: nats-credentials
+              mountPath: /etc/nats
+              readOnly: true
+          {{- end }}
+      {{- if or .Values.backend.bus.natsCredentials.content .Values.backend.bus.natsCredentials.existingSecret }}
+      volumes:
+        - name: nats-credentials
+          secret:
+            {{- if .Values.backend.bus.natsCredentials.existingSecret }}
+            secretName: {{ .Values.backend.bus.natsCredentials.existingSecret }}
+            {{- else }}
+            secretName: {{ include "retrotro.fullname" . }}-secrets
+            {{- end }}
+            items:
+              - key: {{ .Values.backend.bus.natsCredentials.existingSecretKey | default "nats-credentials" }}
+                path: credentials.creds
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -14,8 +14,9 @@ type Config struct {
 	DevMode     bool
 	OIDC        OIDCConfig
 	JWT         JWTConfig
-	BusType string
-	NatsURL string
+	BusType         string
+	NatsURL         string
+	NatsCredentials string
 }
 
 // OIDCConfig holds OIDC provider configuration
@@ -80,8 +81,9 @@ func Load() (*Config, error) {
 			AccessTokenTTL:  accessTTL,
 			RefreshTokenTTL: refreshTTL,
 		},
-		BusType: getEnv("BUS_TYPE", "gochannel"),
-		NatsURL: getEnv("NATS_URL", ""),
+		BusType:         getEnv("BUS_TYPE", "gochannel"),
+		NatsURL:         getEnv("NATS_URL", ""),
+		NatsCredentials: getEnv("NATS_CREDENTIALS", ""),
 	}, nil
 }
 
