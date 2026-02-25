@@ -69,6 +69,7 @@ export interface Retrospective {
   facilitatorId: string
   status: RetroStatus
   currentPhase: RetroPhase
+  sessionType: SessionType
   maxVotesPerUser: number
   maxVotesPerItem: number
   anonymousVoting: boolean
@@ -80,6 +81,8 @@ export interface Retrospective {
   startedAt?: string
   endedAt?: string
   rotiRevealed: boolean
+  lcCurrentTopicId?: string
+  lcTopicTimeboxSeconds?: number
   createdAt: string
   updatedAt: string
   template?: Template
