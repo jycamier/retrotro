@@ -288,3 +288,34 @@ export interface DevUsersResponse {
   users: DevUser[]
   team: DevTeam
 }
+
+// Lean Coffee types
+export interface LCDiscussionState {
+  currentTopicId: string | null
+  queue: Item[]
+  done: Item[]
+  topicHistory: LCTopicHistory[]
+}
+
+export interface LCTopicHistory {
+  id: string
+  retroId: string
+  topicId: string
+  discussionOrder: number
+  totalDiscussionSeconds: number
+  extensionCount: number
+  startedAt: string
+  endedAt?: string
+}
+
+export interface DiscussedTopic {
+  id: string
+  content: string
+  authorId: string
+  authorName: string
+  sessionId: string
+  sessionName: string
+  discussedAt: string
+  totalDiscussionSeconds: number
+  extensionCount: number
+}
