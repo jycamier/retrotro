@@ -70,6 +70,11 @@ func NewWebhookServiceFx(webhookRepo *postgres.WebhookRepository, deliveryRepo *
 	return NewWebhookService(webhookRepo, deliveryRepo)
 }
 
+// NewAnalysisServiceFx creates the analysis service for fx
+func NewAnalysisServiceFx(lcService *LeanCoffeeService) *AnalysisService {
+	return NewAnalysisService(lcService)
+}
+
 // NewLeanCoffeeServiceFx creates the lean coffee service for fx
 func NewLeanCoffeeServiceFx(
 	retroRepo *postgres.RetrospectiveRepository,
