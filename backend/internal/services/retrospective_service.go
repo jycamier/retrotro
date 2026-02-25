@@ -376,6 +376,7 @@ func (s *RetrospectiveService) GetPhaseDuration(ctx context.Context, templateID 
 		models.PhaseVote:       180,
 		models.PhaseDiscuss:    900,
 		models.PhaseRoti:       120,
+		models.PhasePropose:    300,
 	}
 
 	return defaults[phase], nil
