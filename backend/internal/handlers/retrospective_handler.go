@@ -58,23 +58,30 @@ func (h *RetrospectiveHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Name == "" || req.TeamID == uuid.Nil || req.TemplateID == uuid.Nil {
-		http.Error(w, `{"error": "name, teamId, and templateId are required"}`, http.StatusBadRequest)
+	// For lean coffee, templateId is optional (we use the built-in LC template)
+	if req.Name == "" || req.TeamID == uuid.Nil {
+		http.Error(w, `{"error": "name and teamId are required"}`, http.StatusBadRequest)
+		return
+	}
+	if req.SessionType != models.SessionTypeLeanCoffee && req.TemplateID == uuid.Nil {
+		http.Error(w, `{"error": "templateId is required for retrospectives"}`, http.StatusBadRequest)
 		return
 	}
 
 	retro, err := h.retroService.Create(ctx, userID, services.CreateRetroInput{
-		Name:                req.Name,
-		TeamID:              req.TeamID,
-		TemplateID:          req.TemplateID,
-		MaxVotesPerUser:     req.MaxVotesPerUser,
-		MaxVotesPerItem:     req.MaxVotesPerItem,
-		AnonymousVoting:     req.AnonymousVoting,
-		AnonymousItems:      req.AnonymousItems,
-		AllowItemEdit:       req.AllowItemEdit,
-		AllowVoteChange:     req.AllowVoteChange,
-		PhaseTimerOverrides: req.PhaseTimerOverrides,
-		ScheduledAt:         req.ScheduledAt,
+		Name:                  req.Name,
+		TeamID:                req.TeamID,
+		TemplateID:            req.TemplateID,
+		SessionType:           req.SessionType,
+		MaxVotesPerUser:       req.MaxVotesPerUser,
+		MaxVotesPerItem:       req.MaxVotesPerItem,
+		AnonymousVoting:       req.AnonymousVoting,
+		AnonymousItems:        req.AnonymousItems,
+		AllowItemEdit:         req.AllowItemEdit,
+		AllowVoteChange:       req.AllowVoteChange,
+		PhaseTimerOverrides:   req.PhaseTimerOverrides,
+		ScheduledAt:           req.ScheduledAt,
+		LCTopicTimeboxSeconds: req.LCTopicTimeboxSeconds,
 	})
 	if err != nil {
 		http.Error(w, `{"error": "`+err.Error()+`"}`, http.StatusInternalServerError)
