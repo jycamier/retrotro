@@ -123,6 +123,7 @@ export const teamsApi = {
   getActions: (teamId: string) => api.get<ActionItem[]>(`/teams/${teamId}/actions`),
   patchAction: (teamId: string, actionId: string, data: { status?: string; assigneeId?: string | null; description?: string }) =>
     api.patch<ActionItem>(`/teams/${teamId}/actions/${actionId}`, data),
+  getTopics: (teamId: string) => api.get<DiscussedTopic[]>(`/teams/${teamId}/topics`),
 }
 
 export const templatesApi = {
