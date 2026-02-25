@@ -19,14 +19,16 @@ type RetrospectiveHandler struct {
 	retroService      *services.RetrospectiveService
 	timerService      *services.TimerService
 	leanCoffeeService *services.LeanCoffeeService
+	analysisService   *services.AnalysisService
 }
 
 // NewRetrospectiveHandler creates a new retrospective handler
-func NewRetrospectiveHandler(retroService *services.RetrospectiveService, timerService *services.TimerService, leanCoffeeService *services.LeanCoffeeService) *RetrospectiveHandler {
+func NewRetrospectiveHandler(retroService *services.RetrospectiveService, timerService *services.TimerService, leanCoffeeService *services.LeanCoffeeService, analysisService *services.AnalysisService) *RetrospectiveHandler {
 	return &RetrospectiveHandler{
 		retroService:      retroService,
 		timerService:      timerService,
 		leanCoffeeService: leanCoffeeService,
+		analysisService:   analysisService,
 	}
 }
 
