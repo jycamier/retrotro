@@ -218,6 +218,10 @@ export function useWebSocket(retroId: string | undefined) {
           const currentUserId = useAuthStore.getState().user?.id || ''
           retroStore.setVoteSummary(state.voteSummary, currentUserId)
         }
+        // Set LC discussion state if present
+        if (state.lcDiscussionState) {
+          useLeanCoffeeStore.getState().setDiscussionState(state.lcDiscussionState)
+        }
         break
       }
 
