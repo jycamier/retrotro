@@ -9,6 +9,7 @@ import TeamStatsPage from './pages/TeamStatsPage'
 import TeamActionsPage from './pages/TeamActionsPage'
 import RetroPage from './pages/RetroPage'
 import RetroBoardPage from './pages/RetroBoardPage'
+import LeanCoffeeBoardPage from './pages/LeanCoffeeBoardPage'
 import UsersPage from './pages/UsersPage'
 import TeamsAdminPage from './pages/TeamsAdminPage'
 
