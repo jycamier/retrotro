@@ -347,20 +347,31 @@ func (h *WebSocketHandler) handleJoinRetro(client *ws.Client, payload json.RawMe
 		}
 	}
 
+	// Build retro_state payload
+	retroStatePayload := map[string]interface{}{
+		"retro":          retro,
+		"items":          items,
+		"actions":        actions,
+		"participants":   participantList,
+		"timerRunning":   h.timerService.IsTimerRunning(retroID),
+		"timerRemaining": h.timerService.GetRemainingSeconds(retroID),
+		"moods":          moods,
+		"rotiResults":    rotiResults,
+		"teamMembers":    teamMembersWithStatus,
+		"voteSummary":    voteSummaryJSON,
+	}
+
+	// Add LC discussion state if this is a Lean Coffee session
+	if retro.SessionType == models.SessionTypeLeanCoffee {
+		lcState, err := h.leanCoffeeService.GetDiscussionState(context.Background(), retroID)
+		if err == nil {
+			retroStatePayload["lcDiscussionState"] = lcState
+		}
+	}
+
 	h.hub.SendToClient(client, ws.Message{
-		Type: "retro_state",
-		Payload: map[string]interface{}{
-			"retro":          retro,
-			"items":          items,
-			"actions":        actions,
-			"participants":   participantList,
-			"timerRunning":   h.timerService.IsTimerRunning(retroID),
-			"timerRemaining": h.timerService.GetRemainingSeconds(retroID),
-			"moods":          moods,
-			"rotiResults":    rotiResults,
-			"teamMembers":    teamMembersWithStatus,
-			"voteSummary":    voteSummaryJSON,
-		},
+		Type:    "retro_state",
+		Payload: retroStatePayload,
 	})
 
 	// Broadcast participant joined only if user wasn't already in room (local check only)
