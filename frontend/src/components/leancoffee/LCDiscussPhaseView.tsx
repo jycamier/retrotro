@@ -1,7 +1,8 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useLeanCoffeeStore } from '../../store/leanCoffeeStore'
 import { useRetroStore } from '../../store/retroStore'
 import PhaseTimer from '../retrospective/PhaseTimer'
+import TimeoutOverlay from './TimeoutOverlay'
 import { SkipForward, Plus, Check, Trash2, User, ThumbsUp, MessageSquare, Clock, CheckCircle2, ListChecks, ArrowRight } from 'lucide-react'
 import clsx from 'clsx'
 import type { ActionItem, Participant } from '../../types'
@@ -15,9 +16,33 @@ interface LCDiscussPhaseViewProps {
 
 export default function LCDiscussPhaseView({ send, isFacilitator, actions, participants }: LCDiscussPhaseViewProps) {
   const { currentTopicId, queue, done, topicHistory, allTopicsDone } = useLeanCoffeeStore()
-  const { items } = useRetroStore()
+  const { items, isTimerRunning, timerRemainingSeconds } = useRetroStore()
   const [newActionTitle, setNewActionTitle] = useState('')
   const [newActionAssignee, setNewActionAssignee] = useState('')
+  const [showTimeout, setShowTimeout] = useState(false)
+  const wasRunningRef = useRef(false)
+
+  // Detect timer expiration: was running, now stopped with 0 remaining
+  useEffect(() => {
+    if (isTimerRunning) {
+      wasRunningRef.current = true
+    } else if (wasRunningRef.current && timerRemainingSeconds === 0) {
+      wasRunningRef.current = false
+      setShowTimeout(true)
+    }
+  }, [isTimerRunning, timerRemainingSeconds])
+
+  // Dismiss timeout overlay when switching topic or when timer restarts (e.g. +5 min)
+  useEffect(() => {
+    setShowTimeout(false)
+    wasRunningRef.current = false
+  }, [currentTopicId])
+
+  useEffect(() => {
+    if (isTimerRunning && showTimeout) {
+      setShowTimeout(false)
+    }
+  }, [isTimerRunning, showTimeout])
 
   const currentTopic = useMemo(() => {
     if (!currentTopicId) return null
@@ -100,6 +125,8 @@ export default function LCDiscussPhaseView({ send, isFacilitator, actions, parti
 
   return (
     <div className="flex flex-col h-full">
+      {showTimeout && <TimeoutOverlay onDismiss={() => setShowTimeout(false)} />}
+
       {/* Header with timer and facilitator controls */}
       <div className="flex items-center justify-between px-6 py-3 border-b border-gray-200 bg-white">
         <div className="flex items-center gap-3">
