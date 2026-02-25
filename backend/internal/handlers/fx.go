@@ -28,8 +28,8 @@ func NewAuthHandlerFx(authService *services.AuthService, cfg *config.Config, dev
 }
 
 // NewRetrospectiveHandlerFx creates the retrospective handler for fx
-func NewRetrospectiveHandlerFx(retroService *services.RetrospectiveService, timerService *services.TimerService, leanCoffeeService *services.LeanCoffeeService) *RetrospectiveHandler {
-	return NewRetrospectiveHandler(retroService, timerService, leanCoffeeService)
+func NewRetrospectiveHandlerFx(retroService *services.RetrospectiveService, timerService *services.TimerService, leanCoffeeService *services.LeanCoffeeService, analysisService *services.AnalysisService) *RetrospectiveHandler {
+	return NewRetrospectiveHandler(retroService, timerService, leanCoffeeService, analysisService)
 }
 
 // NewWebSocketHandlerFx creates the WebSocket handler for fx
