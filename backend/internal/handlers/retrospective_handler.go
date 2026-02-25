@@ -32,17 +32,19 @@ func NewRetrospectiveHandler(retroService *services.RetrospectiveService, timerS
 
 // CreateRetroRequest represents a create retrospective request
 type CreateRetroRequest struct {
-	Name                string                    `json:"name"`
-	TeamID              uuid.UUID                 `json:"teamId"`
-	TemplateID          uuid.UUID                 `json:"templateId"`
-	MaxVotesPerUser     int                       `json:"maxVotesPerUser"`
-	MaxVotesPerItem     int                       `json:"maxVotesPerItem"`
-	AnonymousVoting     bool                      `json:"anonymousVoting"`
-	AnonymousItems      bool                      `json:"anonymousItems"`
-	AllowItemEdit       *bool                     `json:"allowItemEdit"`
-	AllowVoteChange     *bool                     `json:"allowVoteChange"`
-	PhaseTimerOverrides map[models.RetroPhase]int `json:"phaseTimerOverrides"`
-	ScheduledAt         *time.Time                `json:"scheduledAt"`
+	Name                  string                    `json:"name"`
+	TeamID                uuid.UUID                 `json:"teamId"`
+	TemplateID            uuid.UUID                 `json:"templateId"`
+	SessionType           models.SessionType        `json:"sessionType"`
+	MaxVotesPerUser       int                       `json:"maxVotesPerUser"`
+	MaxVotesPerItem       int                       `json:"maxVotesPerItem"`
+	AnonymousVoting       bool                      `json:"anonymousVoting"`
+	AnonymousItems        bool                      `json:"anonymousItems"`
+	AllowItemEdit         *bool                     `json:"allowItemEdit"`
+	AllowVoteChange       *bool                     `json:"allowVoteChange"`
+	PhaseTimerOverrides   map[models.RetroPhase]int `json:"phaseTimerOverrides"`
+	ScheduledAt           *time.Time                `json:"scheduledAt"`
+	LCTopicTimeboxSeconds *int                      `json:"lcTopicTimeboxSeconds"`
 }
 
 // Create creates a new retrospective
