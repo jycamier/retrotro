@@ -1,7 +1,8 @@
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { useAuthStore } from '../store/authStore'
 import { useRetroStore } from '../store/retroStore'
-import type { WSMessage, Item, RetroPhase, IcebreakerMood, RotiResults, MoodWeather, TeamMemberStatus, DraftItem, Participant } from '../types'
+import { useLeanCoffeeStore } from '../store/leanCoffeeStore'
+import type { WSMessage, Item, RetroPhase, IcebreakerMood, RotiResults, MoodWeather, TeamMemberStatus, DraftItem, Participant, LCDiscussionState } from '../types'
 
 interface ExtendedRetroState {
   retro: import('../types').Retrospective
