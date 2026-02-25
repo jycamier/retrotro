@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 
+	"github.com/google/uuid"
 	"github.com/jycamier/retrotro/backend/internal/models"
 )
 
