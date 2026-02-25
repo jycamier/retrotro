@@ -398,3 +398,28 @@ type TeamMemberStatus struct {
 	Role        Role      `json:"role"`
 	IsConnected bool      `json:"isConnected"`
 }
+
+// LCTopicHistory represents the discussion history of a Lean Coffee topic
+type LCTopicHistory struct {
+	ID                     uuid.UUID  `json:"id" db:"id"`
+	RetroID                uuid.UUID  `json:"retroId" db:"retro_id"`
+	TopicID                uuid.UUID  `json:"topicId" db:"topic_id"`
+	DiscussionOrder        int        `json:"discussionOrder" db:"discussion_order"`
+	TotalDiscussionSeconds int        `json:"totalDiscussionSeconds" db:"total_discussion_seconds"`
+	ExtensionCount         int        `json:"extensionCount" db:"extension_count"`
+	StartedAt              time.Time  `json:"startedAt" db:"started_at"`
+	EndedAt                *time.Time `json:"endedAt,omitempty" db:"ended_at"`
+}
+
+// DiscussedTopic represents a topic discussed in a Lean Coffee session (for team topics page)
+type DiscussedTopic struct {
+	ID                     uuid.UUID `json:"id"`
+	Content                string    `json:"content"`
+	AuthorID               uuid.UUID `json:"authorId"`
+	AuthorName             string    `json:"authorName"`
+	SessionID              uuid.UUID `json:"sessionId"`
+	SessionName            string    `json:"sessionName"`
+	DiscussedAt            time.Time `json:"discussedAt"`
+	TotalDiscussionSeconds int       `json:"totalDiscussionSeconds"`
+	ExtensionCount         int       `json:"extensionCount"`
+}
