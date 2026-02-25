@@ -49,6 +49,12 @@ function App() {
           <RetroBoardPage />
         </ProtectedRoute>
       } />
+
+      <Route path="/leancoffee/:sessionId" element={
+        <ProtectedRoute>
+          <LeanCoffeeBoardPage />
+        </ProtectedRoute>
+      } />
     </Routes>
   )
 }
