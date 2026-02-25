@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.3](https://github.com/jycamier/retrotro/compare/retrotro-helm-v0.0.2...retrotro-helm-v0.0.3) (2026-02-25)
+
+
+### Features
+
+* replace PGBridge with MessageBus interface ([#11](https://github.com/jycamier/retrotro/issues/11)) ([e3656fb](https://github.com/jycamier/retrotro/commit/e3656fb7b850521858e06344cbf7f3c432fd7a38))
+
 ## [0.0.2](https://github.com/jycamier/retrotro/compare/retrotro-helm-v0.0.1...retrotro-helm-v0.0.2) (2026-01-24)
 
 
