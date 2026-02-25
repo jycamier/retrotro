@@ -19,7 +19,7 @@ export default function RetroBoardPage() {
   const { retroId } = useParams<{ retroId: string }>()
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const { retro, participants, items, actions, currentPhase, moods, rotiVotedUserIds, rotiResults, teamMembers, reset } = useRetroStore()
+  const { retro, participants, items, actions, currentPhase, moods, rotiVotedUserIds, rotiResults, teamMembers, syncDiscussItemId, reset } = useRetroStore()
   const { isConnected, isStateLoaded, send, disconnect } = useWebSocket(retroId)
   const [showSummary, setShowSummary] = useState(false)
 
