@@ -34,10 +34,13 @@ export default function DiscussionCarousel({
   send,
   isFacilitator,
 }: DiscussionCarouselProps) {
-  const [currentIndex, setCurrentIndex] = useState(0)
+  const [localIndex, setLocalIndex] = useState(0)
   const [newActionTitle, setNewActionTitle] = useState('')
   const [newActionAssignee, setNewActionAssignee] = useState('')
   const [newActionDueDate, setNewActionDueDate] = useState('')
+
+  // currentIndex is controlled: facilitator sends discuss_set_item, all clients sync
+  const currentIndex = localIndex
 
   // Get top-level items (not grouped under another item), sorted by votes
   const discussionItems = useMemo(() => {
