@@ -243,4 +243,4 @@ export const authApi = {
 }
 
 // Import types
-import type { Team, TeamMember, TeamWithMemberCount, Template, Retrospective, Item, ActionItem, User, RotiResults, IcebreakerMood, TeamRotiStats, TeamMoodStats, UserRotiStats, UserMoodStats, CombinedUserStats, DevUsersResponse } from '../types'
+import type { Team, TeamMember, TeamWithMemberCount, Template, Retrospective, Item, ActionItem, User, RotiResults, IcebreakerMood, TeamRotiStats, TeamMoodStats, UserRotiStats, UserMoodStats, CombinedUserStats, DevUsersResponse, DiscussedTopic } from '../types'
