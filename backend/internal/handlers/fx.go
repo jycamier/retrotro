@@ -3,8 +3,8 @@ package handlers
 import (
 	"go.uber.org/fx"
 
+	"github.com/jycamier/retrotro/backend/internal/bus"
 	"github.com/jycamier/retrotro/backend/internal/config"
-	"github.com/jycamier/retrotro/backend/internal/pgbridge"
 	"github.com/jycamier/retrotro/backend/internal/repository/postgres"
 	"github.com/jycamier/retrotro/backend/internal/services"
 	"github.com/jycamier/retrotro/backend/internal/websocket"
@@ -35,7 +35,7 @@ func NewRetrospectiveHandlerFx(retroService *services.RetrospectiveService, time
 // NewWebSocketHandlerFx creates the WebSocket handler for fx
 func NewWebSocketHandlerFx(
 	hub *websocket.Hub,
-	bridge *pgbridge.PGBridge,
+	bridge bus.MessageBus,
 	retroService *services.RetrospectiveService,
 	timerService *services.TimerService,
 	authService *services.AuthService,

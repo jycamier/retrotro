@@ -1,3 +1,4 @@
+{{- include "retrotro.validateBusType" . -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -101,6 +102,12 @@ spec:
             {{- if .Values.oidc.jit.facilitatorGroups }}
             - name: OIDC_JIT_FACILITATOR_GROUPS
               value: {{ .Values.oidc.jit.facilitatorGroups | join "," | quote }}
+            {{- end }}
+            - name: BUS_TYPE
+              value: {{ .Values.backend.bus.type | quote }}
+            {{- if .Values.backend.bus.natsUrl }}
+            - name: NATS_URL
+              value: {{ .Values.backend.bus.natsUrl | quote }}
             {{- end }}
             {{- range .Values.backend.envFromSecrets }}
             - name: {{ .key }}

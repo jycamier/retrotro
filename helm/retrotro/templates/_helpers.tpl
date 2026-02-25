@@ -92,6 +92,19 @@ Create the name of the service account to use
 {{- end }}
 
 {{/*
+Validate bus type
+*/}}
+{{- define "retrotro.validateBusType" -}}
+{{- $valid := list "gochannel" "nats" "sql" -}}
+{{- if not (has .Values.backend.bus.type $valid) -}}
+{{- fail (printf "backend.bus.type must be one of %s, got: %s" (join ", " $valid) .Values.backend.bus.type) -}}
+{{- end -}}
+{{- if and (eq .Values.backend.bus.type "nats") (not .Values.backend.bus.natsUrl) -}}
+{{- fail "backend.bus.natsUrl is required when backend.bus.type is nats" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Database URL
 */}}
 {{- define "retrotro.databaseUrl" -}}
