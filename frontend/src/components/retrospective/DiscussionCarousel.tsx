@@ -11,6 +11,7 @@ interface DiscussionCarouselProps {
   participants: Participant[]
   send: (type: string, payload: Record<string, unknown>) => void
   isFacilitator: boolean
+  syncItemId?: string | null  // externally controlled item (from discuss_item_changed)
 }
 
 // Helper to get trigram from name
