@@ -203,12 +203,16 @@ export default function TeamPage() {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    {getStatusIcon(retro.status)}
+                    {retro.sessionType === 'lean_coffee'
+                      ? <Coffee className="w-4 h-4 text-amber-500" />
+                      : getStatusIcon(retro.status)}
                     <div>
                       <h3 className="font-medium text-gray-900">{retro.name}</h3>
                       <p className="text-sm text-gray-500">
-                        {getStatusLabel(retro.status)} · Created{' '}
-                        {new Date(retro.createdAt).toLocaleDateString()}
+                        {retro.sessionType === 'lean_coffee' && (
+                          <span className="text-amber-600 font-medium">Lean Coffee · </span>
+                        )}
+                        {getStatusLabel(retro.status)} · {new Date(retro.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>
