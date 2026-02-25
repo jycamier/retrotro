@@ -68,3 +68,13 @@ func NewDevSeederFx(cfg *config.Config, teamRepo *postgres.TeamRepository, teamM
 func NewWebhookServiceFx(webhookRepo *postgres.WebhookRepository, deliveryRepo *postgres.WebhookDeliveryRepository) *WebhookService {
 	return NewWebhookService(webhookRepo, deliveryRepo)
 }
+
+// NewLeanCoffeeServiceFx creates the lean coffee service for fx
+func NewLeanCoffeeServiceFx(
+	retroRepo *postgres.RetrospectiveRepository,
+	itemRepo *postgres.ItemRepository,
+	voteRepo *postgres.VoteRepository,
+	topicHistoryRepo *postgres.LCTopicHistoryRepository,
+) *LeanCoffeeService {
+	return NewLeanCoffeeService(retroRepo, itemRepo, voteRepo, topicHistoryRepo)
+}
