@@ -265,6 +265,7 @@ func (r *RetrospectiveRepository) ListByTeam(ctx context.Context, teamID uuid.UU
 			&phaseTimerOverrides, &retro.TimerStartedAt, &retro.TimerDurationSeconds, &retro.TimerPausedAt,
 			&retro.TimerRemainingSeconds, &retro.ScheduledAt, &retro.StartedAt, &retro.EndedAt,
 			&retro.CreatedAt, &retro.UpdatedAt,
+			&retro.SessionType, &retro.LCCurrentTopicID, &retro.LCTopicTimeboxSeconds,
 		)
 		if err == nil && phaseTimerOverrides != nil {
 			_ = json.Unmarshal(phaseTimerOverrides, &retro.PhaseTimerOverrides)
