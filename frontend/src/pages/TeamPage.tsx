@@ -7,10 +7,13 @@ import type { Retrospective, Template, RotiResults, SessionType } from '../types
 
 export default function TeamPage() {
   const { teamId } = useParams<{ teamId: string }>()
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newRetroName, setNewRetroName] = useState('')
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
+  const [sessionType, setSessionType] = useState<SessionType>('retro')
+  const [lcTopicTimebox, setLcTopicTimebox] = useState(5) // minutes
 
   const openCreateModal = () => {
     const today = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
