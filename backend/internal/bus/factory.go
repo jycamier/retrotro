@@ -70,10 +70,13 @@ func createPubSub(cfg *config.Config, pool *pgxpool.Pool, logger watermill.Logge
 			natsOpts = append(natsOpts, nats.UserCredentials(cfg.NatsCredentials))
 		}
 
+		jsDisabled := watermillnats.JetStreamConfig{Disabled: true}
+
 		pub, err := watermillnats.NewPublisher(
 			watermillnats.PublisherConfig{
 				URL:         cfg.NatsURL,
 				NatsOptions: natsOpts,
+				JetStream:   jsDisabled,
 			},
 			logger,
 		)
@@ -86,6 +89,7 @@ func createPubSub(cfg *config.Config, pool *pgxpool.Pool, logger watermill.Logge
 			watermillnats.SubscriberConfig{
 				URL:         cfg.NatsURL,
 				NatsOptions: natsOpts,
+				JetStream:   jsDisabled,
 			},
 			logger,
 		)
