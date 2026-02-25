@@ -66,23 +66,40 @@ export default function TeamPage() {
   })
 
   const createRetroMutation = useMutation({
-    mutationFn: (data: { name: string; teamId: string; templateId: string }) =>
+    mutationFn: (data: { name: string; teamId: string; templateId?: string; sessionType?: SessionType; lcTopicTimeboxSeconds?: number }) =>
       retrosApi.create(data),
-    onSuccess: () => {
+    onSuccess: (retro: Retrospective) => {
       queryClient.invalidateQueries({ queryKey: ['retros', teamId] })
       setShowCreateModal(false)
       setNewRetroName('')
       setSelectedTemplateId('')
+      // Auto-start and navigate to the session for LC
+      if (retro.sessionType === 'lean_coffee') {
+        retrosApi.start(retro.id).then(() => {
+          navigate(`/leancoffee/${retro.id}`)
+        })
+      }
     },
   })
 
   const handleCreateRetro = (e: React.FormEvent) => {
     e.preventDefault()
-    if (newRetroName && selectedTemplateId && teamId) {
+    if (!newRetroName || !teamId) return
+
+    if (sessionType === 'lean_coffee') {
+      createRetroMutation.mutate({
+        name: newRetroName,
+        teamId,
+        sessionType: 'lean_coffee',
+        lcTopicTimeboxSeconds: lcTopicTimebox * 60,
+      })
+    } else {
+      if (!selectedTemplateId) return
       createRetroMutation.mutate({
         name: newRetroName,
         teamId,
         templateId: selectedTemplateId,
+        sessionType: 'retro',
       })
     }
   }
