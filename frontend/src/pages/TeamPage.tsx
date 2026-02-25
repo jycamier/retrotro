@@ -160,6 +160,13 @@ export default function TeamPage() {
           </div>
           <div className="flex items-center gap-3">
             <Link
+              to={`/teams/${teamId}/topics`}
+              className="flex items-center gap-2 px-4 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 transition-colors"
+            >
+              <Coffee className="w-4 h-4" />
+              Sujets discutés
+            </Link>
+            <Link
               to={`/teams/${teamId}/actions`}
               className="flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
             >
