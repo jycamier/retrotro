@@ -138,7 +138,9 @@ export const retrosApi = {
   create: (data: {
     name: string
     teamId: string
-    templateId: string
+    templateId?: string
+    sessionType?: 'retro' | 'lean_coffee'
+    lcTopicTimeboxSeconds?: number
     maxVotesPerUser?: number
     anonymousVoting?: boolean
   }) => api.post<Retrospective>('/retrospectives', data),
