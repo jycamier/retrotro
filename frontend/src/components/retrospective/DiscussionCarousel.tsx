@@ -430,10 +430,15 @@ export default function DiscussionCarousel({
 
         {/* Progress dots */}
         <div className="flex items-center gap-1.5">
-          {discussionItems.slice(0, 10).map((_, index) => (
+          {discussionItems.slice(0, 10).map((item, index) => (
             <button
               key={index}
-              onClick={() => setCurrentIndex(index)}
+              onClick={() => {
+                if (isFacilitator) {
+                  send('discuss_set_item', { itemId: item.id })
+                }
+                setLocalIndex(index)
+              }}
               className={clsx(
                 'w-2.5 h-2.5 rounded-full transition-colors',
                 index === currentIndex
