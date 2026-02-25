@@ -285,8 +285,8 @@ func (r *RetrospectiveRepository) Create(ctx context.Context, retro *models.Retr
 		INSERT INTO retrospectives (id, name, team_id, template_id, facilitator_id, status,
 		                            current_phase, max_votes_per_user, max_votes_per_item, anonymous_voting,
 		                            anonymous_items, allow_item_edit, allow_vote_change, phase_timer_overrides,
-		                            scheduled_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		                            scheduled_at, session_type, lc_topic_timebox_seconds)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		RETURNING id, created_at, updated_at
 	`
 
@@ -299,6 +299,11 @@ func (r *RetrospectiveRepository) Create(ctx context.Context, retro *models.Retr
 		retro.MaxVotesPerItem = 3
 	}
 
+	// Default session type to retro
+	if retro.SessionType == "" {
+		retro.SessionType = models.SessionTypeRetro
+	}
+
 	var phaseTimerOverrides []byte
 	if retro.PhaseTimerOverrides != nil {
 		phaseTimerOverrides, _ = json.Marshal(retro.PhaseTimerOverrides)
@@ -308,7 +313,7 @@ func (r *RetrospectiveRepository) Create(ctx context.Context, retro *models.Retr
 		retro.ID, retro.Name, retro.TeamID, retro.TemplateID, retro.FacilitatorID,
 		retro.Status, retro.CurrentPhase, retro.MaxVotesPerUser, retro.MaxVotesPerItem, retro.AnonymousVoting,
 		retro.AnonymousItems, retro.AllowItemEdit, retro.AllowVoteChange, phaseTimerOverrides,
-		retro.ScheduledAt,
+		retro.ScheduledAt, retro.SessionType, retro.LCTopicTimeboxSeconds,
 	).Scan(&retro.ID, &retro.CreatedAt, &retro.UpdatedAt)
 
 	if err != nil {
