@@ -199,6 +199,3 @@ func (r *LCTopicHistoryRepository) FindCurrentByRetro(ctx context.Context, retro
 
 	return &history, nil
 }
-
-// Ensure unused import is used (sql.NullString)
-var _ = time.Now
