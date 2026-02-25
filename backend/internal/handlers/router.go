@@ -110,6 +110,9 @@ func NewRouter(
 				r.Get("/actions", retroHandler.ListTeamActions)
 				r.Patch("/actions/{actionId}", retroHandler.PatchTeamAction)
 
+				// Team topics from completed Lean Coffee sessions
+				r.Get("/topics", retroHandler.ListTeamTopics)
+
 				// Webhooks
 				r.Route("/webhooks", func(r chi.Router) {
 					r.Post("/", webhookHandler.Create)
