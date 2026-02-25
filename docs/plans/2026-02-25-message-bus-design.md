@@ -1,10 +1,10 @@
-# Design : Interface MessageBus
+# Design : Interface MessageBus (Watermill)
 
 ## Contexte
 
 Le PGBridge actuel (`backend/internal/pgbridge/`) couple le broadcast inter-pods a PostgreSQL LISTEN/NOTIFY. Cette approche ne fonctionne pas avec les bases serverless (Scaleway) qui utilisent PgBouncer en mode transaction pooling.
 
-On extrait une interface `MessageBus` avec deux implementations : PostgreSQL (existant) et NATS (nouveau).
+On extrait une interface `MessageBus` avec une unique implementation `WatermillBus` qui delegue le transport a Watermill (pub/sub library Go). Watermill fournit des adapters pour GoChannel (in-memory), NATS JetStream, et PostgreSQL SQL polling.
 
 ## Interface
 
@@ -28,21 +28,21 @@ type MessageBus interface {
 
 ```
 backend/internal/bus/
-  bus.go        -- interface MessageBus
-  pgbus.go      -- implementation PostgreSQL LISTEN/NOTIFY (migration du code pgbridge)
-  natsbus.go    -- implementation NATS
-  factory.go    -- factory fx : lit BUS_TYPE, instancie pgbus ou natsbus
+  bus.go             -- interface MessageBus + shared types
+  watermill_bus.go   -- implementation unique wrappant Watermill Publisher/Subscriber
+  factory.go         -- factory fx : lit BUS_TYPE, cree le bon adapter Watermill
 ```
 
 Le package `pgbridge/` est supprime.
 
-## Selection de l'implementation
+## Selection du backend
 
 Variable d'environnement `BUS_TYPE` :
-- `postgres` (defaut) : utilise PostgreSQL LISTEN/NOTIFY
-- `nats` : utilise NATS, necessite `NATS_URL`
+- `gochannel` (defaut) : in-memory, single pod, ideal pour le dev
+- `nats` : NATS JetStream, multi-pod, production Scaleway. Necessite `NATS_URL`.
+- `sql` : PostgreSQL SQL polling via watermill-sql, multi-pod, fonctionne partout y compris serverless
 
-La factory fx lit la config et retourne l'implementation appropriee.
+La factory fx cree le Publisher/Subscriber Watermill correspondant et les injecte dans `WatermillBus`.
 
 ## Consumers impactes
 
@@ -55,5 +55,11 @@ La factory fx lit la config et retourne l'implementation appropriee.
 ## Config
 
 Ajout dans la struct Config :
-- `BusType string` (env: `BUS_TYPE`, defaut: `"postgres"`)
+- `BusType string` (env: `BUS_TYPE`, defaut: `"gochannel"`)
 - `NatsURL string` (env: `NATS_URL`, requis si BUS_TYPE=nats)
+
+## Dependencies
+
+- `github.com/ThreeDotsLabs/watermill` (core)
+- `github.com/ThreeDotsLabs/watermill-nats/v2` (NATS JetStream adapter)
+- `github.com/ThreeDotsLabs/watermill-sql/v3` (PostgreSQL SQL adapter)
