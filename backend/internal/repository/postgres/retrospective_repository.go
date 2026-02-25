@@ -235,7 +235,8 @@ func (r *RetrospectiveRepository) ListByTeam(ctx context.Context, teamID uuid.UU
 		       max_votes_per_user, max_votes_per_item, anonymous_voting, anonymous_items,
 		       allow_item_edit, allow_vote_change, phase_timer_overrides,
 		       timer_started_at, timer_duration_seconds, timer_paused_at, timer_remaining_seconds,
-		       scheduled_at, started_at, ended_at, created_at, updated_at
+		       scheduled_at, started_at, ended_at, created_at, updated_at,
+		       session_type, lc_current_topic_id, lc_topic_timebox_seconds
 		FROM retrospectives WHERE team_id = $1
 	`
 	args := []any{teamID}
