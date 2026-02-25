@@ -106,22 +106,30 @@ func (s *RetrospectiveService) Create(ctx context.Context, facilitatorID uuid.UU
 		allowVoteChange = *input.AllowVoteChange
 	}
 
+	// Default session type to retro
+	sessionType := input.SessionType
+	if sessionType == "" {
+		sessionType = models.SessionTypeRetro
+	}
+
 	retro := &models.Retrospective{
-		ID:                  uuid.New(),
-		Name:                input.Name,
-		TeamID:              input.TeamID,
-		TemplateID:          input.TemplateID,
-		FacilitatorID:       facilitatorID,
-		Status:              models.StatusDraft,
-		CurrentPhase:        models.PhaseBrainstorm,
-		MaxVotesPerUser:     maxVotes,
-		MaxVotesPerItem:     maxVotesPerItem,
-		AnonymousVoting:     input.AnonymousVoting,
-		AnonymousItems:      input.AnonymousItems,
-		AllowItemEdit:       allowItemEdit,
-		AllowVoteChange:     allowVoteChange,
-		PhaseTimerOverrides: input.PhaseTimerOverrides,
-		ScheduledAt:         input.ScheduledAt,
+		ID:                    uuid.New(),
+		Name:                  input.Name,
+		TeamID:                input.TeamID,
+		TemplateID:            input.TemplateID,
+		FacilitatorID:         facilitatorID,
+		Status:                models.StatusDraft,
+		CurrentPhase:          models.PhaseBrainstorm,
+		MaxVotesPerUser:       maxVotes,
+		MaxVotesPerItem:       maxVotesPerItem,
+		AnonymousVoting:       input.AnonymousVoting,
+		AnonymousItems:        input.AnonymousItems,
+		AllowItemEdit:         allowItemEdit,
+		AllowVoteChange:       allowVoteChange,
+		PhaseTimerOverrides:   input.PhaseTimerOverrides,
+		ScheduledAt:           input.ScheduledAt,
+		SessionType:           sessionType,
+		LCTopicTimeboxSeconds: input.LCTopicTimeboxSeconds,
 	}
 
 	return s.retroRepo.Create(ctx, retro)
