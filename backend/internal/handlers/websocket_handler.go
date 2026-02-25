@@ -1435,3 +1435,95 @@ func (h *WebSocketHandler) handleFacilitatorTransfer(client *ws.Client, payload 
 		},
 	})
 }
+
+// handleDiscussSetItem handles setting the current discussion item.
+// For retros: broadcasts discuss_item_changed to sync the carousel.
+// For LC: also updates lc_current_topic_id, records history, and starts timer.
+func (h *WebSocketHandler) handleDiscussSetItem(client *ws.Client, payload json.RawMessage) {
+	if client.RoomID == "" {
+		return
+	}
+
+	var data struct {
+		ItemID string `json:"itemId"`
+	}
+	if err := json.Unmarshal(payload, &data); err != nil {
+		log.Printf("handleDiscussSetItem: failed to unmarshal payload: %v", err)
+		return
+	}
+
+	retroID, err := uuid.Parse(client.RoomID)
+	if err != nil {
+		return
+	}
+
+	itemID, err := uuid.Parse(data.ItemID)
+	if err != nil {
+		return
+	}
+
+	ctx := context.Background()
+	retro, err := h.retroService.GetByID(ctx, retroID)
+	if err != nil {
+		log.Printf("handleDiscussSetItem: failed to get retro: %v", err)
+		return
+	}
+
+	// Only facilitator can navigate
+	if retro.FacilitatorID != client.UserID {
+		h.hub.SendToClient(client, ws.Message{
+			Type: "error",
+			Payload: map[string]interface{}{
+				"message": "Only the facilitator can navigate discussion items",
+			},
+		})
+		return
+	}
+
+	if retro.SessionType == models.SessionTypeLeanCoffee {
+		// LC mode: update topic, record history, start timer
+		history, _, err := h.leanCoffeeService.SetTopic(ctx, retroID, itemID)
+		if err != nil {
+			log.Printf("handleDiscussSetItem: failed to set LC topic: %v", err)
+			return
+		}
+
+		// Broadcast LC-specific state update
+		lcState, err := h.leanCoffeeService.GetDiscussionState(ctx, retroID)
+		if err == nil {
+			h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
+				Type:    "lc_discussion_state",
+				Payload: lcState,
+			})
+		}
+
+		// Start topic timer if configured
+		timeboxSeconds := 300 // default 5 min
+		if retro.LCTopicTimeboxSeconds != nil {
+			timeboxSeconds = *retro.LCTopicTimeboxSeconds
+		}
+		_ = h.timerService.StartTimer(ctx, retroID, timeboxSeconds)
+
+		_ = history // used for creating history entry
+	}
+
+	// For both retro and LC: broadcast the item change to sync all clients
+	// Get item index info for carousel sync
+	items, _ := h.retroService.ListItems(ctx, retroID)
+	itemIndex := 0
+	for i, item := range items {
+		if item.ID == itemID {
+			itemIndex = i
+			break
+		}
+	}
+
+	h.bridge.BroadcastToRoom(client.RoomID, ws.Message{
+		Type: "discuss_item_changed",
+		Payload: map[string]interface{}{
+			"itemId":     data.ItemID,
+			"itemIndex":  itemIndex,
+			"totalItems": len(items),
+		},
+	})
+}
